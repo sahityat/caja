@@ -1,0 +1,179 @@
+Block
+  ExpressionStmt
+    FunctionConstructor
+      Identifier
+      Block
+        MultiDeclaration
+          Declaration
+            Identifier : yes
+          Declaration
+            Identifier : no
+        ReturnStmt
+          ControlOperation : TERNARY
+            SimpleOperation : LESS_THAN
+              Reference
+                Identifier : n
+              IntegerLiteral : 0
+            SimpleOperation : STRICTLY_EQUAL
+              Reference
+                Identifier : no
+              StringLiteral : 'negative'
+            AssignOperation : ASSIGN
+              Reference
+                Identifier : yes
+              StringLiteral : 'positive'
+  FunctionDeclaration
+    Identifier : ICAL_daysBetween
+    FunctionConstructor
+      Identifier : ICAL_daysBetween
+      FormalParam
+        Identifier : y1
+      FormalParam
+        Identifier : m1
+      FormalParam
+        Identifier : d1
+      FormalParam
+        Identifier : y2
+      FormalParam
+        Identifier : m2
+      FormalParam
+        Identifier : d2
+      Block
+        Declaration
+          Identifier : d
+        Conditional
+          SimpleOperation : STRICTLY_EQUAL
+            Reference
+              Identifier : y1
+            Reference
+              Identifier : y2
+          Block
+            Conditional
+              SimpleOperation : STRICTLY_EQUAL
+                AssignOperation : ASSIGN
+                  Reference
+                    Identifier : d
+                  SimpleOperation : SUBTRACTION
+                    Reference
+                      Identifier : m1
+                    Reference
+                      Identifier : m2
+                IntegerLiteral : 0
+              Block
+                ReturnStmt
+                  SimpleOperation : SUBTRACTION
+                    Reference
+                      Identifier : d1
+                    Reference
+                      Identifier : d2
+              SimpleOperation : LESS_THAN
+                Reference
+                  Identifier : d
+                IntegerLiteral : 0
+              Block
+                ExpressionStmt
+                  AssignOperation : ASSIGN
+                    Reference
+                      Identifier : d
+                    SimpleOperation : SUBTRACTION
+                      Reference
+                        Identifier : d1
+                      Reference
+                        Identifier : d2
+                DoWhileLoop : 
+                  Block
+                    ExpressionStmt
+                      AssignOperation : ASSIGN_SUB
+                        Reference
+                          Identifier : d
+                        SpecialOperation : FUNCTION_CALL
+                          Reference
+                            Identifier : ICAL_daysInMonth
+                          Reference
+                            Identifier : y1
+                          AssignOperation : POST_INCREMENT
+                            Reference
+                              Identifier : m1
+                  SimpleOperation : LESS_THAN
+                    Reference
+                      Identifier : m1
+                    Reference
+                      Identifier : m2
+                ReturnStmt
+                  Reference
+                    Identifier : d
+              Block
+                ExpressionStmt
+                  AssignOperation : ASSIGN
+                    Reference
+                      Identifier : d
+                    SimpleOperation : SUBTRACTION
+                      Reference
+                        Identifier : d1
+                      Reference
+                        Identifier : d2
+                DoWhileLoop : 
+                  Block
+                    ExpressionStmt
+                      AssignOperation : ASSIGN_SUM
+                        Reference
+                          Identifier : d
+                        SpecialOperation : FUNCTION_CALL
+                          Reference
+                            Identifier : ICAL_daysInMonth
+                          Reference
+                            Identifier : y2
+                          AssignOperation : POST_INCREMENT
+                            Reference
+                              Identifier : m2
+                  SimpleOperation : LESS_THAN
+                    Reference
+                      Identifier : m2
+                    Reference
+                      Identifier : m1
+                ReturnStmt
+                  Reference
+                    Identifier : d
+          Block
+            ReturnStmt
+              SpecialOperation : FUNCTION_CALL
+                SpecialOperation : MEMBER_ACCESS
+                  Reference
+                    Identifier : Math
+                  Reference
+                    Identifier : round
+                SimpleOperation : DIVISION
+                  SimpleOperation : SUBTRACTION
+                    SpecialOperation : FUNCTION_CALL
+                      SpecialOperation : MEMBER_ACCESS
+                        Reference
+                          Identifier : Date
+                        Reference
+                          Identifier : UTC
+                      Reference
+                        Identifier : y1
+                      SimpleOperation : SUBTRACTION
+                        Reference
+                          Identifier : m1
+                        IntegerLiteral : 1
+                      Reference
+                        Identifier : d1
+                    SpecialOperation : FUNCTION_CALL
+                      SpecialOperation : MEMBER_ACCESS
+                        Reference
+                          Identifier : Date
+                        Reference
+                          Identifier : UTC
+                      Reference
+                        Identifier : y2
+                      SimpleOperation : SUBTRACTION
+                        Reference
+                          Identifier : m2
+                        IntegerLiteral : 1
+                      Reference
+                        Identifier : d2
+                  SimpleOperation : MULTIPLICATION
+                    SimpleOperation : MULTIPLICATION
+                      IntegerLiteral : 24
+                      IntegerLiteral : 3600
+                    IntegerLiteral : 1000

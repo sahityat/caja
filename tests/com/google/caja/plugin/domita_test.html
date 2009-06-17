@@ -1,0 +1,387 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!--
+ - Copyright (C) 2008 Google Inc.
+ -
+ - Licensed under the Apache License, Version 2.0 (the "License");
+ - you may not use this file except in compliance with the License.
+ - You may obtain a copy of the License at
+ -
+ -      http://www.apache.org/licenses/LICENSE-2.0
+ -
+ - Unless required by applicable law or agreed to in writing, software
+ - distributed under the License is distributed on an "AS IS" BASIS,
+ - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ - See the License for the specific language governing permissions and
+ - limitations under the License.
+-->
+<html id="html"><!-- attributes on document should not show in domita. -->
+  <head id="head">
+    <title>Domita</title>
+
+    <script src="../console.js" onerror="console.error(this.src)"></script>
+    <script src="../../../../js/json_sans_eval/json_sans_eval.js"
+     onerror="console.error(this.src)"></script>
+    <script src="../cajita.js" onerror="console.error(this.src)"></script>
+    <script src="../../../../js/jsunit/2.2/jsUnitCore.js"></script>
+    <script src="jsunit.js" onerror="console.error(this.src)"></script>
+    <script src="unicode.js" onerror="console.error(this.src)"></script>
+    <script src="html4-defs.js" onerror="console.error(this.src)"></script>
+    <script src="css-defs.js" onerror="console.error(this.src)"></script>
+    <script src="html-sanitizer.js" onerror="console.error(this.src)"></script>
+    <script src="bridal.js" onerror="console.error(this.src)"></script>
+    <script src="html-emitter.js" onerror="console.error(this.src)"></script>
+    <script src="domita.js" onerror="console.error(this.src)"></script>
+    <!-- Prime the browser cache by loading the whitelisted script
+      - synchronously so the test doesn't take so long. -->
+    <script src="whitelisted_script.js"
+     onerror="console.error(this.src)"></script>
+
+    <script src="../console.js"></script>
+
+    <script type="text/javascript">
+    function testDomita() {
+      this.evaluateAsyncRequirements(function (pass) {
+        if (!pass) {
+          document.title = document.title.replace(
+              / - all tests passed$/, ' - async tests failed');
+        }
+        assertTrue(document.title,
+                   /(?: - all tests passed)?$/.test(document.title));
+      });
+    }
+
+    // globalSideEffect() is not exposed to cajoled code, so if cajoled code
+    // can reach it, then it has escaped containment.
+    // checkGlobalSideEffect() is exposed to cajoled code and returns true iff
+    // globalSideEffect() has been called since the last call to
+    // checkGlobalSideEffect().
+    (function () {
+      var sideEffectHappened = false;
+      function globalSideEffect() { sideEffectHappened = true; }
+      function checkGlobalSideEffect() {
+        var result = sideEffectHappened;
+        sideEffectHappened = false;
+        return result;
+      }
+      this.globalSideEffect = globalSideEffect;
+      this.checkGlobalSideEffect = checkGlobalSideEffect;
+    })();
+
+    // Test that side effect catching works by trying it uncajoled.
+    jsunitRegister(
+        '_testSideEffectTestFramework',
+        function _testSideEffectTestFramework() {
+          assertFalse(checkGlobalSideEffect());
+          var s = document.createElement('SCRIPT');
+          s.innerHTML = 'globalSideEffect()';
+          document.body.appendChild(s);
+          assertTrue(checkGlobalSideEffect());
+          assertFalse(checkGlobalSideEffect());
+        });
+    </script>
+  </head>
+
+  <body bgcolor="white" onload="testDomita()">
+    <div id="console-results"></div>
+
+    <div id="untrusted_content" class="xyz___"
+     title="<Untrusted Content Title>"
+     style="position: relative; width:1200px; height: 600px">
+      <!-- should appear first -->
+      <div id="absolutely-positioned-xyz___"
+       style="position: absolute; padding: 0; margin: 0;
+              left: 11px; top: 3px; width:100px; height:40px; border-width: 0"
+      >abs</div
+      ><div id="relatively-positioned-xyz___"
+        style="margin: 0 0 0 9px; padding: 0; border-width: 0;
+               width: 100px; height: 40px"
+        >rel</div>
+
+      <!-- inaccessible to document.getElementById -->
+      <div id="foo"></div>
+
+      <!-- accessible, but with certain inaccessible attributes -->
+      <!-- The unescaped title attribute and the > after the </em> are
+        - intentionally non-standard to test the behavior of innerHTML on
+        - various browsers. -->
+      <div id="test-inner-html-xyz___" class="testcontainer"
+       ><a id="bar" href="http://foo.com?a=b&c=d" class="link"
+         title="<click me!>" target="_parent"
+         >Test <em id="em-xyz___">Not</em>> run yet.</a>
+      </div>
+
+      <div class="testcontainer" id="test-opaque-nodes-xyz___"
+       ><!-- Comment -->a<script id="howdy-script-xyz___">/* Howdy */</script
+       >b<object></object>c</div>
+    </div>
+
+    <script type="text/javascript">
+      function loadScript(src) {
+        document.write(
+            '<script src="' + html.escapeAttrib(src) + '"'
+            + ' onerror="console.error(this.src)"><\/script>');
+      }
+
+      function makeXhr() {
+        if (typeof XMLHttpRequest === 'undefined') {
+          var activeXClassIds = [
+              'MSXML2.XMLHTTP.5.0', 'MSXML2.XMLHTTP.4.0', 'MSXML2.XMLHTTP.3.0',
+              'MSXML2.XMLHTTP', 'MICROSOFT.XMLHTTP.1.0', 'MICROSOFT.XMLHTTP.1',
+              'MICROSOFT.XMLHTTP'];
+          for (var i = 0, n = activeXClassIds.length; i < n; i++) {
+            var candidate = activeXClassIds[i];
+            try {
+              return new ActiveXObject(candidate);
+            } catch (e) {}
+          }
+        }
+        return new XMLHttpRequest;
+      }
+
+      function inlineHtml(href, container) {
+        var xhr = makeXhr();
+        xhr.open('GET', href, false);
+        xhr.send(null);
+        if (xhr.status !== 200 && xhr.status !== 0) {
+          throw new Error('Failed to load ' + href + ' : ' + xhr.status);
+        }
+        var htmlAndScript = xhr.responseText.match(
+            /^([\s\S]*?)<script[^>]*>([\s\S]*?)<\/script>$/);
+        var div = container.ownerDocument.createElement('DIV');
+        div.innerHTML = htmlAndScript[1];
+        while (div.firstChild) { container.appendChild(div.firstChild); }
+        (new Function(htmlAndScript[2]))();
+      }
+
+      var isValija = /[&?]valija([=&]|$)/.test(location.search);
+    </script>
+
+    <script type="text/javascript">
+    var valijaMaker;
+    (function () {
+      if (isValija) {
+        var testImports = ___.copy(___.sharedImports);
+        testImports.loader = ___.freeze({
+              provide: ___.func(function (v) { valijaMaker = v; })
+            });
+        ___.getNewModuleHandler().setImports(testImports);
+        loadScript('valija.co.js');
+      }
+    })();</script>
+
+    <script type="text/javascript">(function () {
+      ___.setLogFunc(function(msg) { console.log(msg); });
+
+      var testImports = ___.copy(___.sharedImports);
+      if (valijaMaker) { testImports.outers = testImports; }
+      var testDomContainer = document.getElementById('untrusted_content');
+      var pseudoWindowLocation = {
+          href: 'http://zip.example.com:4242/pumpkin.html?q=getit#myanchor',
+          hash: '#myanchor',
+          host: 'zip.example.com:4242',
+          hostname: 'zip.example.com',
+          pathname: '/pumpkin.html',
+          port: '4242',
+          protocol: 'http:',
+          search: '?q=getit'
+      };
+
+      ___.getNewModuleHandler().setImports(testImports);
+
+      testImports.jsunitRegister = ___.frozenFunc(jsunitRegister);
+      testImports.jsunitRun = ___.frozenFunc(jsunitRun);
+      testImports.console = ___.primFreeze({
+        log: ___.frozenFunc(
+            function () { console.log.apply(console, arguments); }),
+        warn: ___.frozenFunc(
+            function () { console.warn.apply(console, arguments); }),
+        error: ___.frozenFunc(
+            function () { console.error.apply(console, arguments); }),
+        trace: ___.frozenFunc(
+            function () {
+              console.trace ? console.trace()
+                  : console.error.apply(console, arguments);
+            })
+      });
+
+      // Give unfiltered DOM access so we can check the results of actions.
+      testImports.directAccess = ___.primFreeze({
+        // Allow testing of emitHtml by exposing it for testing
+        click: ___.frozenFunc(function (tameNode) {
+          tameNode.node___.click();
+        }),
+        emitCssHook: ___.frozenFunc(function (css) {
+          testImports.emitCss___(css.join('xyz___'));
+        }),
+        getInnerHTML: ___.frozenFunc(function (tameNode) {
+          return tameNode.node___.innerHTML;
+        }),
+        getAttribute: ___.frozenFunc(function (tameNode, name) {
+          return tameNode.node___.getAttribute(name);
+        }),
+        getBodyNode: ___.frozenFunc(function () {
+          return testImports.tameNode___(testDomContainer);
+        }),
+        getComputedStyle: ___.frozenFunc(function (tameNode, styleProp) {
+          var node = tameNode.node___;
+          if (node.currentStyle) {
+            return node.currentStyle[styleProp.replace(
+                /-([a-z])/g,
+                function (_, letter) {
+                  return letter.toUpperCase();
+                })];
+          } else if (window.getComputedStyle) {
+            return window.getComputedStyle(node, null)
+                .getPropertyValue(styleProp);
+          } else {
+            return null;
+          }
+        }),
+        // Lets tests check that an outer hull breach -- access to
+        // an unexecuted script node -- does not allow a full breach.
+        makeUnattachedScriptNode: ___.frozenFunc(function () {
+          var s = document.createElement('script');
+          s.appendChild(document.createTextNode('/* intentionally blank */'));
+          return testImports.tameNode___(s, true);
+        })
+      });
+
+      // Marks a container green to indicate that test passed
+      testImports.pass = ___.func(function (id) {
+        var node = testImports.document.getElementById(id);
+        if (!node) { console.trace(); }
+        node = node.node___;
+        node.appendChild(document.createTextNode('Passed ' + id));
+        node.className = (node.className || '') + ' passed';
+      }, 'pass');
+
+      testImports.checkGlobalSideEffect = ___.frozenFunc(checkGlobalSideEffect);
+      // An explicit channel between whitelisted_script.js and cajoled tests.
+      testImports.externalScript = { loaded: false };
+
+      // Define an asynchronous test mechanism so that we can test things like
+      // XHR, dynamic script loading, setTimeout, etc.
+      // This allows test code to requister conditions that must be true.
+      // The conditions can be run periodically until all are satisfied or
+      // the test times out.
+      // If a condition returns true once, it is never evaluated again.
+      // TODO(mikesamuel): rewrite XHR and setTimeout tests to use this scheme.
+      (function () {
+        var req = [];
+        var intervalId = null;
+        var TIMEOUT_MILLIS = 250;
+
+        /**
+         * Registers a requirement for later checking.
+         * @param {string} msg descriptive text used in error messages.
+         * @param {function () : boolean} predicate returns true to indicate
+         *     the requirement has been satisfied.
+         */
+        testImports.assertAsynchronousRequirement = ___.frozenFunc(
+            function (msg, predicate) {
+              req.push({ message: String(msg), predicate: predicate });
+            });
+        /**
+         * Start checking the asynchronous requirements.
+         * @param {function (boolean) : void} handler called with the value
+         *     {@code true} when and if all requirements are satisfied.
+         *     Called with false if more than TIMEOUT_MILLIS time passes
+         *     and requirements still aren't satisfied.
+         */
+        this.evaluateAsyncRequirements = function (handler) {
+          if (intervalId !== null) { throw new Error('dupe handler'); }
+          if (req.length === 0) {
+            handler(true);
+          } else {
+            var timeoutTime = (new Date).getTime() + TIMEOUT_MILLIS;
+            intervalId = setInterval(function () {
+              for (var i = req.length; --i >= 0;) {
+                var msgAndPredicate = req[i];
+                try {
+                  if (true === ___.toFunc(msgAndPredicate.predicate)()) {
+                    // Requirement satisfied.
+                    req[i] = req[req.length - 1];
+                    --req.length;
+                  }
+                } catch (e) {
+                  console.error(
+                      'Asynchronous failure : ' + msgAndPredicate.message);
+                }
+              }
+              if (req.length === 0 || (new Date).getTime() >= timeoutTime) {
+                clearInterval(intervalId);
+                intervalId = null;
+
+                var failures = req.length !== 0;
+                if (failures) {
+                  for (var i = req.length; --i >= 0;) {
+                    console.error('async test timeout: ' + req[i].message);
+                  }
+                  req.length = 0;
+                }
+                handler(!failures);
+              }
+            }, 50);
+          }
+        };
+      })();
+
+      var jsunitFns = [
+          'assert', 'assertContains', 'assertEquals', 'assertEvaluatesToFalse',
+          'assertEvaluatesToTrue', 'assertFalse', 'assertHTMLEquals',
+          'assertHashEquals', 'assertNotEquals', 'assertNotNull',
+          'assertNotUndefined', 'assertNull', 'assertRoughlyEquals',
+          'assertTrue', 'assertObjectEquals', 'assertUndefined', 'error',
+          'fail', 'setUp', 'tearDown'];
+      for (var i = jsunitFns.length; --i >= 0;) {
+        var name = jsunitFns[i];
+        if (testImports.hasOwnProperty(name)) {
+          throw new Error('already defined', name);
+        }
+        testImports[name] = ___.frozenFunc(this[name], name);
+      }
+
+      testImports.valijaMode = !!valijaMaker;
+
+      attachDocumentStub(
+           '-xyz___',
+           {
+             rewrite:
+                 function (uri, mimeType) {
+                   // TODO(mikesamuel): write this properly.
+                   // Whitelisting via regexp is not correct.
+                   var m = uri.match(
+                       /^([^?#]*\/)?unproxied_whitelisted_script\.js$/);
+                   if (m) { return (m[1] || '') + 'whitelisted_script.js'; }
+                   if (/^(?:[^?#]*\/)?xhrTest[^\/?#]*$/.test(uri)) {
+                     return uri;
+                   }
+                   if (!/^https?:\/\//i.test(uri)) { return null; }
+                   return 'http://gadget-proxy/?url=' + encodeURIComponent(uri)
+                       + '&mimeType=' + encodeURIComponent(mimeType);
+                 }
+           },
+           testImports,
+           testDomContainer,
+           pseudoWindowLocation);
+      console.log('attached stubs');
+
+      // Create a readonly mirror of document so that we can test that mutations
+      // fail when they should.
+      var documentHolder = valijaMaker ? testImports.outers : testImports;
+      documentHolder.documentRO = new documentHolder.document.constructor(
+          document, testDomContainer, false);
+
+      testImports.htmlEmitter___ = new HtmlEmitter(
+          testDomContainer, testImports.document);
+      if (valijaMaker) {
+        testImports.$v = valijaMaker.CALL___(testImports.outers);
+      }
+      window.toString = function () { return '[WINDOW]'; };
+
+      inlineHtml(isValija ? 'domita_test.vo.html' : 'domita_test.co.html',
+          testDomContainer);
+    })(); </script>
+
+  </body>
+</html>

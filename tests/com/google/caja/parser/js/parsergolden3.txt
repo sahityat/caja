@@ -1,0 +1,86 @@
+Block
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : a
+      SimpleOperation : NEGATION
+        SpecialOperation : MEMBER_ACCESS
+          Reference
+            Identifier : a
+          Reference
+            Identifier : b
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : x
+      SimpleOperation : NEGATION
+        AssignOperation : POST_INCREMENT
+          Reference
+            Identifier : i
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : z
+      SpecialOperation : SQUARE_BRACKET
+        Reference
+          Identifier : foo
+        AssignOperation : POST_INCREMENT
+          SpecialOperation : MEMBER_ACCESS
+            Reference
+              Identifier : this
+            Reference
+              Identifier : bar
+  ExpressionStmt
+    SpecialOperation : CONSTRUCTOR
+      SpecialOperation : SQUARE_BRACKET
+        Reference
+          Identifier : Foo
+        IntegerLiteral : 4
+  ExpressionStmt
+    SpecialOperation : CONSTRUCTOR
+      SpecialOperation : SQUARE_BRACKET
+        Reference
+          Identifier : Foo
+        IntegerLiteral : 4
+  ExpressionStmt
+    SpecialOperation : SQUARE_BRACKET
+      SpecialOperation : CONSTRUCTOR
+        Reference
+          Identifier : Foo
+      IntegerLiteral : 4
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : a
+      SimpleOperation : NOT
+        SpecialOperation : FUNCTION_CALL
+          SpecialOperation : CONSTRUCTOR
+            SpecialOperation : MEMBER_ACCESS
+              Reference
+                Identifier : Foo
+              Reference
+                Identifier : Bar
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : a
+      SpecialOperation : FUNCTION_CALL
+        SpecialOperation : CONSTRUCTOR
+          SpecialOperation : MEMBER_ACCESS
+            Reference
+              Identifier : Foo
+            Reference
+              Identifier : Bar
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : a
+      SpecialOperation : MEMBER_ACCESS
+        SpecialOperation : CONSTRUCTOR
+          SpecialOperation : MEMBER_ACCESS
+            Reference
+              Identifier : Foo
+            Reference
+              Identifier : Bar
+        Reference
+          Identifier : baz

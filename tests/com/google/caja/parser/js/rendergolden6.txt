@@ -1,0 +1,19 @@
+{
+  var w = /\x3cscript\x3e/;
+  var x = a < /script\x3e/;
+  var y = [ [ 0 ] ] > 1;
+  var s = '\x3c/script\x3e' + '\x3c/script\x3e';
+  var t = ']]\x3e';
+  var r = /[\]]\x3e/;
+  var DOCTYPE = null;
+  var d = 0 < !DOCTYPE;
+  var e = '\x3c!DOCTYPE';
+  var f = /\x3c!DOCTYPE [ ]\x3e/;
+  var g = 0 & amp;
+  var o = {
+    '\x3c/script\x3e': 0,
+    ']]\x3e': 1,
+    '\x3c!DOCTYPE': 2
+  };
+  var p = a < ! (--b) && (c--) > d;
+}

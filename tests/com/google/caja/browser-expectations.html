@@ -1,0 +1,284 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--
+ - Copyright (C) 2008 Google Inc.
+ -
+ - Licensed under the Apache License, Version 2.0 (the "License");
+ - you may not use this file except in compliance with the License.
+ - You may obtain a copy of the License at
+ -
+ -      http://www.apache.org/licenses/LICENSE-2.0
+ -
+ - Unless required by applicable law or agreed to in writing, software
+ - distributed under the License is distributed on an "AS IS" BASIS,
+ - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ - See the License for the specific language governing permissions and
+ - limitations under the License.
+-->
+<html>
+  <head>
+    <title>Browser Expectations</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+
+    <script src="plugin/jsunit.js"></script>
+    <script src="plugin/css-defs.js"></script>
+    <script src="../../../js/jsunit/2.2/jsUnitCore.js"></script>
+  </head>
+  <body onload="jsunitRun()">
+    This file contains tests of our expectations of browser behavior.
+    The tests are not cajoled or transformed in any way.  They just assert
+    that browsers that we support conform to certain norms.
+
+    <form style="display:none" name="iterationTest">
+      <input name="length" id="length">
+      <input name="3" id="3">
+      <input name="1" id="1">
+    </form>
+
+    <script>
+    jsunitRegister('testNumericOperators', function testNumericOperators() {
+      var values = [
+          null, void 0, '\x22', true, 1, function () {}, {}, [], /./,
+          { i: 0, valueOf: function () { return (++this.i) & 1 ? 4 : 'four'; } }
+          ];
+      // Check that the given operator always yields a number.
+      // We have some an array of typical values above.
+      // This function tries the given operator with every combination of
+      // representative values.
+      function checkOperator(operator) {
+        applyAll();
+
+        function applyAll() {
+          var k = arguments.length;
+          var args = Array.prototype.slice.call(arguments, 0);
+          if (k === operator.length) {
+            assertEquals('operator=' + operator + ', args=' + args,
+                         'number', typeof operator.apply(this, args));
+          } else {
+            for (var i = 0; i < values.length; ++i) {
+              args[k] = values[i];
+              applyAll.apply(this, args);
+            }
+          }
+        }
+      }
+      // allows numbers and undefined through but coerces others to a number.
+      function nou(x) { return x === void 0 ? x : +x; }
+
+      // Our array optimizations depend on certain operators returning numbers.
+      checkOperator(function (x) { return ++x; });
+      checkOperator(function (x) { return --x; });
+      checkOperator(function (x) { return x -= 1; });
+
+      // x++ and y++ do not yield a number on IE6 & IE7, but they should assign
+      // a number to their operand.
+      checkOperator(function (x) { ++x; return x; });
+      checkOperator(function (x) { --x; return x; });
+      checkOperator(function (x) { x++; return x; });
+      checkOperator(function (x) { x--; return x; });
+      checkOperator(function (x) { x -= 1; return x; });
+
+      checkOperator(function (x) { return +x; });
+      checkOperator(function (x) { return -x; });
+      checkOperator(function (x) { return ~x; });
+      checkOperator(function (x, y) { return x | y; });
+      checkOperator(function (x, y) { return x & y; });
+      checkOperator(function (x, y) { return x ^ y; });
+      checkOperator(function (x, y) { return x - y; });
+      checkOperator(function (x, y) { return x * y; });
+      checkOperator(function (x, y) { return x / y; });
+      checkOperator(function (x, y) { return x % y; });
+      checkOperator(function (x, y) { return +(x) || +(y); });
+      checkOperator(function (x, y) { return +(x) && +(y); });
+      checkOperator(function (x, y) { return nou(x) + nou(y); });
+      checkOperator(function (x, y, z) { return x ? +(y) : +(z); });
+    });
+
+    jsunitRegister('testCatchScope', function testCatchScope() {
+      // Our scope checking prevents a caught variable from masking a locally
+      // declared variable, which prevents a safeguard sometimes used on older
+      // interpreters
+      //   var e;
+      //   try {
+      //     ...  // does not use e
+      //   } catch (e) { ... }
+
+      // Ensure that the catch variable, even if it leaks into the enclosing
+      // function body scope, does not leak into the enclosing scope.
+      var e;
+      (function () {
+         try {
+           throw 'foo';
+         } catch (e) {
+           assertEquals('foo', e);
+         }
+       })();
+      assertEquals('undefined', typeof e);
+    });
+
+    jsunitRegister('testFinallyReturns', function testFinallyReturns() {
+      // In our onsubmit handler checking, we use a finally block to make
+      // sure that the form will not actually submit.
+      // Make sure that it is the finally block's value that is received, not
+      // the try block's.
+      assertEquals(
+          'finally',
+          (function () {
+             try {
+               return 'try';
+             } finally {
+               return 'finally';
+             }
+           })());
+    });
+
+    jsunitRegister('testFunctionCall', function testFunctionCall() {
+      // Make sure that calling with an object whose primitive value is null
+      // does not link a reference to the global object.
+      var o1 = { valueOf: function (typeHint) { return null; } };
+      (function () { assertEquals('o1', this, o1); }).call(o1);
+
+      var o2 = { valueOf: function (typeHint) { return void 0; } };
+      (function () { assertEquals('o2', this, o2); }).call(o2);
+
+      var o3 = { toString: function (typeHint) { return null; } };
+      (function () { assertEquals('o3', this, o3); }).call(o3);
+
+      var o4 = { toString: function (typeHint) { return void 0; } };
+      (function () { assertEquals('o4', this, o4); }).call(o4);
+    });
+
+    jsunitRegister('testUnnormalizedIdentifiers',
+                   function testUnnormalizedIdentifiers() {
+      // The character sequence "C\u0327" is normalized to "\u00C7" in Unicode
+      // normal form C.
+      // EcmaScript 3.1 says that all source texts are assumed to be normalized
+      // according to normal form C, but does not specify behavior when they are
+      // not.
+
+      assertTrue(
+          'ident after dot not normalized same as unquoted object member',
+          eval('({ C\u0327: true }).C\u0327'));
+      // Check that local variable names and object literal keys are normalized
+      // the same way.
+      assertEquals(
+          'var names normalized same as unquoted object members',
+          2,
+          eval(''
+               + '(function () {'
+               + '  var C\u0327 = 1;'
+               + '  with ({ C\u0327: 2 }) {'
+               + '    return C\u0327;'
+               + '  }'
+               + '})()'));
+      // Check that unquoted object property names correspond to a property
+      // whose name is the proper normalized form or the oiginal.
+      // Check that quoted property names are not normalized.
+      var o = eval('({ C\u0327_1: 1, "C\u0327_2": 2, "C\\u0327_3": 3 })');
+      assertEquals(1, o['C\u0327_1'] || o['\xC7_1']);
+      assertEquals(2, o['C\u0327_2']);
+      assertEquals(3, o['C\u0327_3']);
+    });
+
+    // Discussed at http://code.google.com/p/google-caja/issues/detail?id=935
+    jsunitRegister('testNamedNodeMapIteration',
+                   function testNamedNodeMapIteration() {
+      var results = [];
+      var nodes = document.forms.iterationTest.elements;
+      var limit = nodes.length;
+      if (limit !== +limit) { limit = 1/0; }
+      for (var i = 0, node; i < limit && (node = nodes[i]); ++i) {
+        results.push(node.name);
+      }
+      assertEquals('length, 3, 1', results.join(', '));
+    });
+
+    // Test scoping across eval boundaries.
+    jsunitRegister('testScopingAcrossEvalBoundaries',
+                   function testScopingAcrossEvalBoundaries() {
+      var i = 1;
+      var j = 2;
+      var f = 3;
+      eval("                                                                  \
+        (function () {                                                        \
+          eval('i += j; var k = 3; function f() {}');                         \
+          assertEquals(3, i);  /* i was updated, and j was read. */           \
+          assertEquals(2, j);                                                 \
+          /* Variables definitions pulled into local scope. */                \
+          assertEquals(3, k);                                                 \
+          assertEquals('function', typeof f);                                 \
+        })();                                                                 \
+        ");
+      assertEquals(3, i);  // i was updated, and j was read.
+      assertEquals('undefined', typeof k);
+      assertEquals('number', typeof f);
+      assertEquals(3, f);  // not overidden by function declaration.
+    });
+    </script>
+
+    <p>A visited link and an unvisited link:
+      <a href="browser-expectations.html" id="visited_link"
+       title="visited">Link</a>
+      <a href="javascript:void-0" id="unvisited_link" title="unvisited">Link</a>
+    </p>
+    <script>
+    // Check that visited and unvisited links, by default, only differ in
+    // certain computed style properties.
+    // These differing properties must not affect layout or cause network
+    // access or we will not be able to prevent history mining attacks.
+    // Note: These test the default properties of browsers.  If these same
+    // properties are modified by the container in a way that affect layout or
+    // results in network access, these history mining attacks are reopened.
+    jsunitRegister('testLinkStyles',
+                   function testLinkStyles() {
+      function computedStyles(el) {
+        if (window.getComputedStyle) {
+          return window.getComputedStyle(el, null);
+        } else {
+          return el.currentStyle;
+        }
+      }
+
+      var styleProps = [];
+      (function () {
+        for (var styleProp in css.properties) {
+          if (!css.properties.hasOwnProperty(styleProp)) { continue; }
+          if (css.alternates.hasOwnProperty(styleProp)) {
+            var alternates = css.alternates[styleProp];
+            for (var i = 0, n = alternates.length; i < n; ++i) {
+              styleProps.push(alternates[i]);
+            }
+          } else {
+            styleProps.push(
+                styleProp.replace(/-([a-z])/g,
+                function (_, ch) { return ch.toUpperCase(); }));
+          }
+        }
+        styleProps.sort();
+      })();
+
+      var visited = computedStyles(document.getElementById('visited_link'));
+      var unvisited = computedStyles(document.getElementById('unvisited_link'));
+
+      assertTrue('visited links should differ by color',
+                 visited.color !== unvisited.color);
+
+      var allowedDifferences = {
+          borderBottomColor: true, borderLeftColor: true,
+          borderRightColor: true, borderTopColor: true,
+          borderColor: true, color: true, outlineColor: true };
+      var differences = [];
+      for (var i = 0, n = styleProps.length; i < n; ++i) {
+        var styleProp = styleProps[i];
+        if (visited[styleProp] !== unvisited[styleProp]) {
+          differences.push(styleProp);
+          assertTrue(styleProp, allowedDifferences.hasOwnProperty(styleProp));
+        }
+      }
+
+      document.body.appendChild(document.createTextNode(
+          'Visited style affects [' + differences + ']'));
+    });
+    </script>
+  </body>
+</html>

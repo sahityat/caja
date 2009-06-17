@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+
+# An svn wrapper that fills in the blanks.
+#
+# $(myvn change) will behave like $(svn change -c my-change-1) if run under
+# a subversion client and adds commands like (snapshot, describe, mail) that
+# interact with codereview.appspot.com.
+#
+# ====================
+# Life of a Changelist
+# ====================
+# (1) Create a client directory
+#       $ mkdir -p svn-changes/my-change-name
+# (2) Checkout the src
+#       $ cd svn-changes/my-change-name
+#       $ myvn checkout
+#       $ cd google-caja/
+# (3) Muck around with some source files
+#       See Eclipse steps below
+# (4) Prepare a changelist
+#       $ myvn change
+#     Should pop up an editor.  Check the EDITOR, or SVNEDITOR environment
+#     variables if it doesn't
+# (5) Send it off for review
+#       $ myvn mail --reviewer your-friendly-neighborhood-cajador@gmail.com
+#     This will automatically CC google-caja-discuss
+# (6) Look for the review at codereview.appspot.com.
+#     If you forget the changelist number, run
+#       $ myvn describe
+# (7) Update your changes based on feedback and snapshot
+#       $ myvn snapshot
+# (8) Commit the change
+#       $ myvn submit
+#
+#
+# ====================
+#       Eclipse
+# ====================
+# (1) Build jars
+# (2) Generate the project
+#       $ myvn eclipse
+# (3) Open Eclipse
+# (4) Choose New Java Project  (NOT new google3 project)
+# (5) From Existing Source
+# (6) Enter the .../svn-changes/my-change-1/google-caja/ path
+# (7) Finish
+# (8) Build some stuff
+#       $ ant
+# (9) Test stuff
+#       Right click on project and select "Run As" > "JUnit Test"
+#       $ ant runtests
+#
+#
+# ====================
+#    Other Commands
+# ====================
+# changed      -  files changed in the snapshotted CL.  Pipeable to xargs
+# diffstats    -  number of lines added/changed/removed
+# files        -  files changed in svn.  Pipeable to xargs
+# filetypes    -  sets svn:mime-type of modified files based on file suffix
+
+function myvn() {
+  local default_svn_path=/opt/googlesvn/bin/svn
+  local tools_dir="$(dirname $0)"
+  local submit_bug_path="$tools_dir"/submit-caja-bug.py
+
+  local tmp=$(which svn)
+  if [ -x "$tmp" ]; then
+    default_svn_path=$tmp
+  fi
+
+  local svn=${SVN_BIN:-$default_svn_path}
+
+  local verb="$1"
+  shift
+  case "$verb" in
+    files )
+      "$svn" stat "$@" \
+          | perl -ne 'print "$1\n" if m/^\s*[AMD_]?[AMD]\s+(?:\+\s+)?(\S+)/'
+      ;;
+    diffstats )
+      "$svn" diff -x-uw --notice-ancestry "$@" | perl -e '
+          my ($add, $sub, $chg, $ladd, $lsub) = (0, 0, 0, 0, 0);
+          while (<STDIN>) {
+            next if m@^[+-]@ && m@^.\s*(/[/\*]|\*)@;
+            if (m@^\+[^+]@) { ++$ladd; }
+            elsif (m@^-[^\-]@) { ++$lsub; }
+            else {
+              my $lchg = $ladd < $lsub ? $ladd : $lsub;
+              $chg += $lchg;
+              $add += $ladd - $lchg;
+              $sub += $lsub - $lchg;
+              $ladd = $lsub = 0;
+            }
+          }
+          print "$add added, $sub removed, $chg changed\n";
+          '
+      ;;
+    describe )
+      "$tools_dir/appspot.py" show "$@"
+      ;;
+    checkout|co )
+      "$svn" checkout https://google-caja.googlecode.com/svn/trunk/ google-caja
+      ;;
+    bug )
+      myvn describe | "$submit_bug_path" -s "$(myvn diffstats)" "$@"
+      ;;
+    snapshot )
+      "$tools_dir/appspot.py" snapshot "$@"
+      ;;
+    change )
+      "$tools_dir/appspot.py" edit "$@"
+      ;;
+    submit )
+      runAntTests && "$svn" commit -F <("$tools_dir/appspot.py" show "$@")
+      ;;
+    mail )
+      "$tools_dir/appspot.py" snapshot --send_mail "$@"
+      ;;
+    filetypes )
+      local files=$(myvn files)
+      if [ -n "$1" ]; then  # If they supplied a list of files use that.
+        files="$@"
+      fi
+      for f in $files; do
+        local current_type="$("$svn" propget svn:mime-type "$f")"
+        if [ -z "$current_type" ] \
+           || [ "$current_type" = "application/octet-stream" ]; then
+          local type="$(typeForFile $f)"
+          if [ -n "$type" ]; then
+            "$svn" propset svn:mime-type "$type" "$f"
+          fi
+        fi
+      done
+      ;;
+    eclipse )
+      if [ -z "$ANT_HOME" ]; then
+        echo Please set up the following environment variables:
+        if [ -z "$ANT_HOME"]; then
+          echo 'ANT_HOME (eg. export ANT_HOME=/usr/share/ant)'
+        fi
+      fi
+      makeEclipseProject > .project
+      makeEclipseClasspath > .classpath
+      makeEclipseGenfiles
+      mkdir -p ant-eclipse-lib
+      ;;
+    *)
+      "$svn" "$verb" "$@"
+      ;;
+  esac
+}
+
+function typeForFile() {
+  local f="$1"
+  case "$(echo -n $f | perl -pe 's/^.*\.//')" in
+    css )
+      echo -n "text/css;charset=UTF-8"
+      ;;
+    gif )
+      echo -n "text/gif"
+      ;;
+    graffle )
+      echo -n "text/xml;charset=UTF-8"
+      ;;
+    html )
+      echo -n "text/html;charset=UTF-8"
+      ;;
+    jar )
+      echo -n "application/java-archive"
+      ;;
+    jpg )
+      echo -n "image/jpeg"
+      ;;
+    js )
+      echo -n "text/javascript;charset=UTF-8"
+      ;;
+    json )
+      echo -n "text/x-json;charset=UTF-8"
+      ;;
+    pdf )
+      echo -n "application/pdf"
+      ;;
+    png )
+      echo -n "image/png"
+      ;;
+    svg )
+      echo -n "image/svg+xml;charset=UTF-8"
+      ;;
+    tex )
+      echo -n "text/x-tex;charset=UTF-8"
+      ;;
+    txt )
+      echo -n "text/plain;charset=UTF-8"
+      ;;
+    xml )
+      echo -n "text/xml;charset=UTF-8"
+      ;;
+    xsl )
+      echo -n "text/xml;charset=UTF-8"
+      ;;
+  esac
+}
+
+function makeEclipseClasspath() {
+  echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+  echo "<classpath>"
+  echo "	<classpathentry excluding=\"**/*~|**/.svn/**\" kind=\"src\" path=\"src\"/>"
+  echo "	<classpathentry excluding=\"**/*~|**/.svn/**\" kind=\"src\" path=\"tests\"/>"
+  # Needed so JUnit test works in Eclipse
+  echo "	<classpathentry excluding=\"**/*~|**/.svn/**|**/*.java\" kind=\"src\" path=\"third_party\"/>"
+  # Needed so JUnit test works in Eclipse
+  echo "	<classpathentry kind=\"lib\" path=\"ant-eclipse-genfiles\"/>"
+  for jar in $(find third_party -name \*.jar | sort); do
+    echo "	<classpathentry kind=\"lib\" path=\"$jar\"/>"
+  done
+  echo "	<classpathentry kind=\"con\" path=\"org.eclipse.jdt.launching.JRE_CONTAINER\"/>"
+  echo "	<classpathentry kind=\"lib\" path=\"$ANT_HOME/lib/ant.jar\"/>"
+  echo "	<classpathentry kind=\"output\" path=\"ant-eclipse-lib\"/>"
+  echo "</classpath>"
+}
+
+function makeEclipseProject() {
+  local dir="$PWD"
+  while [ -n "$dir" ] && [ "$dir" != "$(dirname "$dir")" ] && [ -d "$dir/.svn" ]
+  do
+   dir="$(dirname "$dir")"
+  done
+
+  local projectName="$(basename "$dir")"
+  echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+  echo "<projectDescription>"
+  echo "	<name>$projectName</name>"
+  echo "	<comment></comment>"
+  echo "	<projects>"
+  echo "	</projects>"
+  echo "	<buildSpec>"
+  echo "		<buildCommand>"
+  echo "			<name>org.eclipse.jdt.core.javabuilder</name>"
+  echo "			<arguments>"
+  echo "			</arguments>"
+  echo "		</buildCommand>"
+  echo "	</buildSpec>"
+  echo "	<natures>"
+  echo "		<nature>org.eclipse.jdt.core.javanature</nature>"
+  echo "	</natures>"
+  echo "</projectDescription>"
+}
+
+# Build a symlink tree for genfiles.
+# This genfiles tree is used in the eclipse project so that we don't have
+# a bunch of compiled files and copied resources on the classpath that
+# eclipse can already find in its source trees.
+function makeEclipseGenfiles() {
+  rm -rf ant-eclipse-genfiles
+  mkdir ant-eclipse-genfiles
+  if [ -d ant-lib ]; then
+    local f
+    for f in $(find ant-lib -type f | egrep -v '\.(class|jar)$'); do
+      local rel_file="$(echo "$f" | perl -pe 's|^ant-lib/||')"
+      if [ ! -e "src/$rel_file" ] && [ ! -e "tests/$rel_file" ] ; then
+        mkdir -p "$(dirname "ant-eclipse-genfiles/$rel_file")"
+        ln -s "$PWD/$f" "ant-eclipse-genfiles/$rel_file"
+      fi
+    done
+  fi
+}
+
+function runAntTests() {
+  echo Running tests before submission
+  ant runtests
+}
+
+myvn "$@"

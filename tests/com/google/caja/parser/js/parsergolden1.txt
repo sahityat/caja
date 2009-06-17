@@ -1,0 +1,306 @@
+Block
+  Declaration
+    Identifier : i
+    SimpleOperation : ADDITION
+      IntegerLiteral : 1
+      IntegerLiteral : 1
+  FunctionDeclaration
+    Identifier : F
+    FunctionConstructor
+      Identifier : F
+      FormalParam
+        Identifier : a
+      FormalParam
+        Identifier : b
+      FormalParam
+        Identifier : c
+      FormalParam
+        Identifier : d
+      FormalParam
+        Identifier : e
+      Block
+        ReturnStmt
+          SimpleOperation : ADDITION
+            SimpleOperation : ADDITION
+              Reference
+                Identifier : a
+              SimpleOperation : DIVISION
+                SimpleOperation : MULTIPLICATION
+                  Reference
+                    Identifier : b
+                  Reference
+                    Identifier : c
+                Reference
+                  Identifier : d
+            Reference
+              Identifier : e
+  MultiDeclaration
+    Declaration
+      Identifier : x
+      IntegerLiteral : 0
+    Declaration
+      Identifier : y
+    Declaration
+      Identifier : z
+    Declaration
+      Identifier : else
+  ExpressionStmt
+    AssignOperation : ASSIGN_SUM
+      Reference
+        Identifier : x
+      AssignOperation : ASSIGN
+        Reference
+          Identifier : y
+        AssignOperation : ASSIGN
+          Reference
+            Identifier : z
+          IntegerLiteral : 14
+  Conditional
+    SimpleOperation : STRICTLY_EQUAL
+      Reference
+        Identifier : y
+      SimpleOperation : SUBTRACTION
+        SimpleOperation : SUBTRACTION
+          IntegerLiteral : 1
+          IntegerLiteral : 1
+        IntegerLiteral : 1
+    Block
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : print
+          Reference
+            Identifier : z
+  Conditional
+    SimpleOperation : LESS_THAN
+      Reference
+        Identifier : x
+      Reference
+        Identifier : y
+    Block
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : print
+          Reference
+            Identifier : x
+    SimpleOperation : EQUAL
+      Reference
+        Identifier : x
+      Reference
+        Identifier : y
+    ExpressionStmt
+      SpecialOperation : FUNCTION_CALL
+        Reference
+          Identifier : print
+        Reference
+          Identifier : y
+    ExpressionStmt
+      SpecialOperation : FUNCTION_CALL
+        Reference
+          Identifier : print
+        Reference
+          Identifier : z
+  ExpressionStmt
+    AssignOperation : ASSIGN
+      Reference
+        Identifier : arr
+      ArrayConstructor
+        IntegerLiteral : 1
+        IntegerLiteral : 2
+        IntegerLiteral : 3
+        IntegerLiteral : 4
+        IntegerLiteral : 5
+        IntegerLiteral : 6
+        IntegerLiteral : 7
+        IntegerLiteral : 8
+        IntegerLiteral : 9
+        IntegerLiteral : 10
+        IntegerLiteral : 11
+        SpecialOperation : VOID
+          IntegerLiteral : 0
+        IntegerLiteral : 13
+  ForLoop : 
+    Declaration
+      Identifier : i
+      IntegerLiteral : 0
+    SimpleOperation : LESS_THAN
+      Reference
+        Identifier : i
+      SpecialOperation : MEMBER_ACCESS
+        Reference
+          Identifier : a
+        Reference
+          Identifier : length
+    ExpressionStmt
+      AssignOperation : PRE_INCREMENT
+        Reference
+          Identifier : i
+    Block
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : print
+          SimpleOperation : MULTIPLICATION
+            SpecialOperation : SQUARE_BRACKET
+              Reference
+                Identifier : a
+              Reference
+                Identifier : i
+            IntegerLiteral : 2
+  Declaration
+    Identifier : obj
+    ObjectConstructor
+      StringLiteral : 'x'
+      IntegerLiteral : 2
+      StringLiteral : 'y'
+      IntegerLiteral : 3
+  SwitchStmt : 
+    SpecialOperation : FUNCTION_CALL
+      Reference
+        Identifier : foo
+    CaseStmt
+      IntegerLiteral : 1
+      ReturnStmt
+        StringLiteral : "panic"
+    CaseStmt
+      IntegerLiteral : 2
+      Conditional
+        SimpleOperation : STRICTLY_EQUAL
+          Reference
+            Identifier : a
+          IntegerLiteral : 4
+        Block
+          BreakStmt : 
+    CaseStmt
+      Reference
+        Identifier : BAR
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : f
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : g
+    DefaultCaseStmt
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : zowie
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : wowie
+        Noop
+        Noop
+  ForEachLoop : 
+    Declaration
+      Identifier : i
+    Reference
+      Identifier : array
+    Block
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : f
+          Reference
+            Identifier : i
+  ForEachLoop : 
+    ExpressionStmt
+      Reference
+        Identifier : i
+    ArrayConstructor
+      IntegerLiteral : 1
+      IntegerLiteral : 2
+      IntegerLiteral : 3
+    Block
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : f
+          Reference
+            Identifier : i
+  Declaration
+    Identifier : o
+    SpecialOperation : CONSTRUCTOR
+      Reference
+        Identifier : Object
+  SwitchStmt : 
+    Reference
+      Identifier : n
+    CaseStmt
+      IntegerLiteral : 0
+      Noop
+    CaseStmt
+      IntegerLiteral : 1
+      Block
+        Block
+          ExpressionStmt
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : foo
+        BreakStmt : 
+    DefaultCaseStmt
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : panic
+    CaseStmt
+      IntegerLiteral : 2
+      ExpressionStmt
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : bar
+  Declaration
+    Identifier : n
+    SimpleOperation : DIVISION
+      RealLiteral : 1.0
+      IntegerLiteral : 2
+  WhileLoop : foo
+    Reference
+      Identifier : x
+    Block
+      Conditional
+        SpecialOperation : FUNCTION_CALL
+          Reference
+            Identifier : f
+        Block
+          ContinueStmt : foo
+      ExpressionStmt
+        AssignOperation : PRE_DECREMENT
+          Reference
+            Identifier : x
+  ContinueStmt : bar
+  SwitchStmt : label
+    Reference
+      Identifier : x
+    CaseStmt
+      IntegerLiteral : 4
+      BreakStmt : label
+  LabeledStmtWrapper : useless
+    ExpressionStmt
+      Reference
+        Identifier : hello
+  ForEachLoop : 
+    ExpressionStmt
+      SpecialOperation : SQUARE_BRACKET
+        Reference
+          Identifier : arr
+        SimpleOperation : SUBTRACTION
+          SpecialOperation : MEMBER_ACCESS
+            Reference
+              Identifier : arr
+            Reference
+              Identifier : length
+          IntegerLiteral : 1
+    Reference
+      Identifier : o
+    Noop
+  ExpressionStmt
+    Reference
+      Identifier : a
+  ExpressionStmt
+    Reference
+      Identifier : b

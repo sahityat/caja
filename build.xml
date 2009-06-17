@@ -1,0 +1,1011 @@
+<!-- Copyright (C) 2007 Google Inc.
+  -
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  -
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+ -->
+
+<!--
+  - For help, cd to the directory containing this file, run
+  -    ant -p
+  -
+  - To build, cd to the directory containing this file, run
+  -    ant <rulename>
+  - and look for the output in ./ant-* directories.
+  -
+  - Valid values for <rulename> are:
+  -   default    :  builds the plugin compiler (pluginc), tests, and docs
+  -   benchmarks :  runs the benchmarks
+  -   clean      :  wipes generated files
+  -   demos      :  demo files
+  -   docs       :  javadoc
+  -   jars       :  build the binary distribution
+  -   pluginc    :  the plugin compiler
+  -   runtests   :  runs the tests
+  -
+  - To run with assertions enabled, set the environment variable ANT_FLAGS="-ea"
+ -->
+
+<project name="caja" default="default" basedir=".">
+  <description>
+  A subset of javascript that allow an application to securely embed plugins via
+  a capability based security model.
+  </description>
+
+  <!--== inputs ==-->
+  <property name="src"         location="src"/>
+  <property name="tests"       location="tests"/>
+  <property name="test.filter" value="*Test"/>
+  <property name="third_party" location="third_party"/>
+  <property name="demos"       location="src/com/google/caja/demos"/>
+  <!--== outputs ==-->
+  <property name="reports"     location="ant-reports"/>  <!-- emma reports -->
+  <property name="instr"       location="ant-instr"/>  <!-- instrumented src -->
+  <property name="lib"         location="ant-lib"/>
+  <property name="docs"        location="ant-docs"/>
+  <property name="ruledocs"    location="${docs}/rules"/>
+  <property name="javadocs"    location="${docs}/java"/>
+  <property name="jars"        location="ant-jars"/>
+  <property name="www"         location="ant-www"/>  <!-- demo files dir -->
+
+  <!--== classpaths ==-->
+  <path id="classpath.compile">
+    <pathelement path="${third_party}/java/htmlparser/htmlparser.jar"/>
+    <pathelement path="${third_party}/java/jakarta_commons/commons-cli.jar"/>
+    <pathelement path="${third_party}/java/json_simple/json_simple.jar"/>
+    <pathelement path="${third_party}/java/jsdk2.1/servlet.jar"/>
+    <pathelement path="${third_party}/java/jetty/lib/jetty.jar"/>
+    <pathelement path="${third_party}/java/jetty/lib/jetty-util.jar"/>
+    <pathelement path="${third_party}/java/rhino/js.jar"/>
+    <pathelement path="${third_party}/java/xerces/xercesImpl.jar"/>
+  </path>
+  <path id="classpath.run">
+    <pathelement path="${lib}"/>
+    <path refid="classpath.compile"/>
+  </path>
+  <path id="classpath.tests.compile">
+    <pathelement path="${third_party}/java/junit/junit.jar"/>
+    <pathelement path="${third_party}/java/json_simple/json_simple.jar"/>
+    <pathelement path="${third_party}/java/jsdk2.1/servlet.jar"/>
+    <pathelement path="${third_party}/java/rhino/js.jar"/>
+  </path>
+  <path id="classpath.tests.run">
+    <pathelement path="${third_party}/java/emma/emma.jar"/>
+    <pathelement path="${third_party}/java/htmlparser/htmlparser.jar"/>
+    <path refid="classpath.tests.compile"/>
+    <pathelement path="${instr}/classes"/>
+    <!-- Must be last for coverage to work -->
+    <path refid="classpath.run"/>
+  </path>
+  <path id="classpath.extensions">
+    <pathelement path="${third_party}/java/emma/emma_ant.jar"/>
+    <pathelement path="${third_party}/java/emma/emma.jar"/>
+    <pathelement path="${third_party}/java/junit/junit.jar"/>
+    <pathelement path="${third_party}/java/apache_ant/ant-junit.jar"/>
+  </path>
+  <path id="classpath.ant">
+    <pathelement path="${ant.home}/lib/ant.jar"/>
+  </path>
+  <path id="classpath.javadocs">
+    <path refid="classpath.compile"/>
+    <path refid="classpath.ant"/>
+  </path>
+
+  <!--== Tasks Used Below ==-->
+  <taskdef resource="emma_ant.properties"
+   classpathref="classpath.extensions" />
+
+  <taskdef name="junit"
+   classname="org.apache.tools.ant.taskdefs.optional.junit.JUnitTask"
+   classpathref="classpath.extensions" />
+
+  <!--== rules.  Lowercase are public.  Uppercase are used internally. ==-->
+  <target name="default" depends="jars"
+   description="Builds the plugin compiler."/>
+
+  <target name="all" depends="docs,jars,demos,runtests"
+   description="Builds the plugin compiler, and documentation."/>
+
+  <target name="clean"
+   description="deletes all generated files leaving only sources">
+    <delete dir="${reports}"/>
+    <delete dir="${docs}"/>
+    <delete dir="${instr}"/>
+    <delete dir="${jars}"/>
+    <delete dir="${lib}"/>
+    <delete dir="${www}"/>
+  </target>
+
+  <target name="dirs">
+    <mkdir dir="${reports}"/>
+    <mkdir dir="${docs}"/>
+    <mkdir dir="${instr}"/>
+    <mkdir dir="${jars}"/>
+    <mkdir dir="${lib}"/>
+    <mkdir dir="${www}"/>
+  </target>
+
+  <target name="runtests" depends="AllTests"
+   description="Runs unittests.  To filter tests: $ ant -Dtest.filter=My\*Test">
+    <!-- Instrument the compiled class files to gather code coverage stats -->
+    <emma enabled="${emma.enabled}">
+      <instr instrpath="${lib}" destdir="${instr}" mode="fullcopy"
+       metadatafile="${reports}/coverage/metadata.em" merge="true">
+        <filter value="${emma.filter},
+                       -com.google.caja.tools.*,
+                       -com.google.caja.parser.quasiliteral.*RuleDoclet"/>
+      </instr>
+    </emma>
+    <mkdir dir="${reports}/tests"/>
+    <!--
+      - If this fails to run, try with -verbose.  If you see a problem with
+      - forking, check your JAVA and JAVA_HOME environment variables and make
+      - sure ant is using jdk1.6.
+     -->
+    <junit printsummary="yes" fork="yes" maxmemory="512m"
+     errorProperty="runtests.error" failureProperty="runtests.failure">
+      <assertions><enable/></assertions>  <!-- ignored unless fork="yes" -->
+      <classpath refid="classpath.tests.run"/>
+      <formatter type="xml" usefile="true" unless="emma.enabled"/>
+      <batchtest todir="${reports}/tests" unless="emma.enabled">
+        <fileset dir="${tests}">
+          <include name="**/${test.filter}.java"/>
+        </fileset>
+      </batchtest>
+      <sysproperty key="emma.coverage.out.file"
+       value="${reports}/coverage/coverage.ec"/>
+      <sysproperty key="emma.coverage.out.merge" value="false"/>
+      <sysproperty key="user.language" value="tr"/>
+      <sysproperty key="user.region" value="TR"/>
+      <test name="com.google.caja.AllTests" if="emma.enabled"/>
+    </junit>
+    <!-- Generate the code coverage report. -->
+    <emma enabled="${emma.enabled}">
+      <report sourcepath="${src}:${tests}" sort="+name"
+       metrics="method:70,block:80,line:80,class:100">
+        <fileset dir="${reports}/coverage">
+          <include name="*.em" />
+          <include name="*.ec" />
+        </fileset>
+        <html outfile="${reports}/coverage/index.html" encoding="UTF-8"/>
+      </report>
+    </emma>
+    <!-- Generate the test results report. -->
+    <junitreport todir="${reports}/tests">
+      <fileset dir="${reports}/tests" includes="TEST-*.xml"/>
+      <report format="frames" todir="${reports}/tests"
+       styledir="${third_party}/ant/etc"/>
+    </junitreport>
+    <fail message=
+     "One or more tests failed. For details, see ${reports}/tests/index.html"
+     if="runtests.error"/>
+    <fail message=
+     "One or more tests failed. For details, see ${reports}/tests/index.html"
+     if="runtests.failure"/>
+  </target>
+
+  <target name="docs" description="Builds all Caja documentation."
+   depends="javadocs,ruledocs">
+  </target>
+
+  <target name="javadocs" description="Builds javadoc documentation.">
+    <mkdir dir="${javadocs}"/>
+    <javadoc sourcepath="${src}" destdir="${javadocs}" access="private"
+     author="true"
+     bottom="Copyright (C) 2008 Google Inc.&lt;br&gt;
+             &lt;a href=&#34;http://www.apache.org/licenses/LICENSE-2.0&#34;&gt;
+             Licensed under the Apache License, Version 2.0&lt;/a&gt;"
+     docencoding="utf-8"
+     packagenames="com/google/caja/*"
+     classpathref="classpath.javadocs"
+     linksource="yes"/>
+     <!-- overview="${src}/overview.html" -->
+  </target>
+
+  <target name="ruledocs" description="Caja rule documentation."
+   depends="RuleDoclet">
+    <mkdir dir="${ruledocs}"/>
+    <ruledoclet output="html" outputdir="${ruledocs}"
+     rewriter="com.google.caja.parser.quasiliteral.CajitaRewriter"/>
+  </target>
+
+  <target name="tools" depends="PluginCompiler">
+    <!-- Now that we have the compiler, build ant task wrappers -->
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.ant"/>
+      <include name="**/caja/plugin/BuildServiceImplementation.java"/>
+      <include name="**/caja/tools/*.java"/>
+      <compilerarg line="-Xlint:deprecation"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+    <taskdef name="transform" classname="com.google.caja.tools.TransformAntTask"
+     classpathref="classpath.run"/>
+    <taskdef name="innocent" classname="com.google.caja.tools.InnocentAntTask"
+     classpathref="classpath.run"/>
+    <taskdef name="genrule" classname="com.google.caja.tools.GenRuleAntTask"
+     classpathref="classpath.run"/>
+  </target>
+
+  <target name="pluginc" depends="dirs,PluginCompiler,build.info,tools"
+   description="Build the plugin compiler and other main classes">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/opensocial/*.java"/>
+      <include name="**/caja/opensocial/applet/ExpressionLanguageStage.java"/>
+      <include name="**/caja/plugin/*Main.java"/>
+    </javac>
+    <!-- Generate a schema of CSS properties for client side CSS validation. -->
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/lang/css/CssPropertyPatterns.java"/>
+      <include name="**/caja/lang/css/HtmlDefinitions.java"/>
+    </javac>
+    <genrule class="com.google.caja.lang.css.CssPropertyPatterns$Builder">
+      <output file="${lib}/com/google/caja/plugin/css-defs.js"/>
+      <include file="${src}/com/google/caja/lang/css/css-extensions.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css21.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css21-defs.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css21-whitelist.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css-extensions.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css-extensions-defs.json"/>
+      <depend
+       file="${src}/com/google/caja/lang/css/css-extensions-whitelist.json"/>
+      <include file="${src}/com/google/caja/lang/css/css21-fns.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css21-fns-defs.json"/>
+      <depend file="${src}/com/google/caja/lang/css/css21-fns-whitelist.json"/>
+      <depend file="${src}/com/google/caja/lang/css/CssPropertyPatterns.java"/>
+    </genrule>
+    <genrule class="com.google.caja.lang.html.HtmlDefinitions$Builder">
+      <output file="${lib}/com/google/caja/plugin/html4-defs.js"/>
+      <include file="${src}/com/google/caja/lang/html/html4-elements.json"/>
+      <depend
+       file="${src}/com/google/caja/lang/html/html4-elements-defs.json"/>
+      <depend
+       file="${src}/com/google/caja/lang/html/html4-elements-whitelist.json"/>
+      <include
+       file="${src}/com/google/caja/lang/html/html4-attributes-extensions.json"
+       />
+      <depend file="${src}/com/google/caja/lang/html/html4-attributes.json"/>
+      <depend
+       file="${src}/com/google/caja/lang/html/html4-attributes-defs.json"/>
+      <depend
+       file="${src}/com/google/caja/lang/html/html4-attributes-extensions-defs.json"/>
+      <depend
+       file="${src}/com/google/caja/lang/html/html4-attributes-whitelist.json"
+       />
+      <depend file="${src}/com/google/caja/lang/html/HtmlDefinitions.java"/>
+    </genrule>
+  </target>
+
+  <target name="benchmarks" description="Runs benchmarks."
+   depends="dirs,pluginc,MinifiedJs,CajoledValija,jars">
+    <copy todir="${lib}/com/google/caja/demos/benchmarks">
+      <fileset dir="${third_party}/js/v8-benchmark">
+        <include name="base.js"/>
+        <include name="richards.js"/>
+        <include name="deltablue.js"/>
+        <include name="crypto.js"/>
+        <include name="raytrace.js"/>
+        <include name="earley-boyer.js"/>
+        <include name="run.js"/>
+      </fileset>
+    </copy>
+    <copy todir="${lib}">
+      <fileset dir="${src}">
+        <include name="com/google/caja/cajita.js"/>
+      </fileset>
+    </copy>
+    <mkdir dir="${reports}/benchmarks"/>
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${tests}"/>
+      <classpath refid="classpath.tests.compile"/>
+      <include name="**/caja/demos/benchmarks/*.java"/>
+    </javac>
+    <junit printsummary="yes" fork="yes" maxmemory="512m"
+     errorProperty="benchmarks.error" failureProperty="benchmarks.failure">
+      <assertions><enable/></assertions>  <!-- ignored unless fork="yes" -->
+      <classpath refid="classpath.tests.run"/>
+      <formatter type="xml" usefile="true"/>
+      <test name="com.google.caja.demos.benchmarks.BenchmarkRunner"
+       todir="${reports}/benchmarks"/>
+    </junit>
+    <junitreport todir="${reports}/benchmarks">
+      <fileset dir="${reports}/benchmarks" includes="TEST-*.xml"/>
+      <report format="frames" todir="${reports}/benchmarks"
+       styledir="${third_party}/ant/etc"/>
+    </junitreport>
+    <fail message=
+     "One or more tests failed. For details, see ${reports}/tests/index.html"
+     if="benchmarks.error"/>
+    <fail message="One or more tests failed to compile."
+     if="benchmarks.failure"/>
+  </target>
+
+  <target name="jars" depends="pluginc,CajoledValija,MinifiedJs"
+   description="Place all jars needed to run the cajoler under ${jars}">
+    <copy todir="${jars}">
+      <fileset dir="${third_party}/java/jakarta_commons">
+        <include name="commons-cli.jar"/>
+      </fileset>
+      <fileset dir="${third_party}/java/htmlparser">
+        <include name="htmlparser.jar"/>
+      </fileset>
+      <fileset dir="${third_party}/java/json_simple">
+        <include name="json_simple.jar"/>
+      </fileset>
+      <fileset dir="${third_party}/java/jsdk2.1">
+        <include name="servlet.jar"/>
+      </fileset>
+      <fileset dir="${third_party}/java/rhino">
+        <include name="js.jar"/>
+      </fileset>
+      <fileset dir="${third_party}/java/jetty/lib">
+        <include name="jetty.jar"/>
+        <include name="jetty-util.jar"/>
+      </fileset>
+      <fileset dir="${third_party}/java/xerces">
+        <include name="xercesImpl.jar"/>
+      </fileset>
+    </copy>
+    <jar destfile="${jars}/pluginc.jar" basedir="${lib}">
+      <manifest>
+        <attribute name="Main-Class"
+         value="com.google.caja.plugin.PluginCompilerMain"/>
+      </manifest>
+    </jar>
+    <jar destfile="${jars}/pluginc-src.jar" basedir="${src}"/>
+  </target>
+
+  <target name="demos" depends="calendar,lolcat-search,testbed,slides"
+   description="Puts all the demo files together for easy browsing."/>
+
+  <!-- Cajoles test resources that contain cajita to javascript. -->
+  <target name="CajoledTests" depends="pluginc,dirs,CajoledValija">
+    <transform>
+      <include file="${tests}/com/google/caja/plugin/domita_test_untrusted.html"
+       />
+
+      <output file="${lib}/com/google/caja/plugin/domita_test.co.html"
+       language="cajita"/>
+      <output file="${lib}/com/google/caja/plugin/domita_test.vo.html"
+       language="valija"/>
+    </transform>
+    <copy todir="${lib}">
+      <fileset dir="${src}" includes="**/*.html"/>
+      <fileset dir="${tests}" includes="**/*.html"/>
+    </copy>
+  </target>
+  <target name="CajoledValija" depends="pluginc">
+    <transform>
+      <output file="${lib}/com/google/caja/plugin/valija.co.js"
+       language="cajita"/>
+      <include file="${src}/com/google/caja/valija-cajita.js"/>
+    </transform>
+  </target>
+
+  <target name="MinifiedJs" depends="pluginc">
+    <transform>
+      <output file="${lib}/com/google/caja/plugin/html-sanitizer-minified.js"
+       language="javascript" renderer="minify"/>
+      <include file="${lib}/com/google/caja/plugin/css-defs.js"/>
+      <include file="${lib}/com/google/caja/plugin/html4-defs.js"/>
+      <include file="${src}/com/google/caja/plugin/html-sanitizer.js"/>
+    </transform>
+    <transform>
+      <output file="${lib}/com/google/caja/plugin/domita-minified.js"
+       language="javascript" renderer="minify"/>
+      <include file="${third_party}/js/json_sans_eval/json_sans_eval.js"/>
+      <include file="${src}/com/google/caja/cajita.js"/>
+      <include file="${src}/com/google/caja/plugin/unicode.js"/>
+      <include file="${src}/com/google/caja/plugin/html-emitter.js"/>
+      <include file="${src}/com/google/caja/plugin/bridal.js"/>
+      <include file="${src}/com/google/caja/plugin/domita.js"/>
+    </transform>
+  </target>
+
+  <target name="AllTests"
+   depends="pluginc,CajoledValija,MinifiedJs,CajolingService,CajoledTests,TestbedClasses,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${tests}"/>
+      <classpath refid="classpath.tests.compile"/>
+      <include name="**/caja/AllTests.java"/>
+      <include name="**/caja/util/*.java"/>
+      <include name="**/caja/**/*TestCase.java"/>
+      <include name="**/caja/**/*Test.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+
+    <!-- TODO(mikesamuel): Can we replace these tree copies with something
+      - that builds a symlink tree? -->
+    <copy todir="${lib}">
+      <fileset dir="${src}">
+        <include name="**/caja/cajita.js"/>
+        <include name="**/caja/cajita-debugmode.js"/>
+        <include name="**/caja/console.js"/>
+        <include name="**/caja/log-to-console.js"/>
+        <include name="**/caja/valija-cajita.js"/>
+        <include name="**/caja/demos/calendar/*.js"/>
+        <include name="**/caja/demos/applet/testbed.js"/>
+        <include name="**/caja/demos/applet/setup-valija.js"/>
+        <include name="**/caja/plugin/bridal.js"/>
+        <include name="**/caja/plugin/domita.js"/>
+        <include name="**/caja/plugin/html-emitter.js"/>
+        <include name="**/caja/plugin/html-sanitizer.js"/>
+        <include name="**/caja/plugin/unicode.js"/>
+      </fileset>
+      <fileset dir="${tests}">
+        <include name="**/caja/**/*.css"/>
+        <include name="**/caja/**/*.golden"/>
+        <include name="**/caja/**/*.gxp"/>
+        <include name="**/caja/**/*.html"/>
+        <include name="**/caja/**/*.input"/>
+        <include name="**/caja/**/*.js"/>
+        <include name="**/caja/**/*.txt"/>
+        <include name="**/caja/**/*.xml"/>
+      </fileset>
+      <fileset dir="${third_party}">
+        <include name="js/jqueryjs/runtest/env.js"/>
+        <include name="js/jsunit/2.2/jsUnitCore.js"/>
+        <include name="js/json_sans_eval/json_sans_eval.js"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="build.info">
+    <tstamp>
+      <format property="build.timestamp" pattern="yyyy-MM-dd HH:mm:ss"/>
+    </tstamp>
+    <exec outputproperty="build.svnVersion"
+     executable="svnversion"
+     failonerror="false"
+     failifexecutionfails="false"
+     dir="."/>
+    <echo append="false"
+     file="${lib}/com/google/caja/reporting/buildInfo.properties"
+     message="# Caja Build Information${line.separator}"/>
+    <echo append="true"
+     file="${lib}/com/google/caja/reporting/buildInfo.properties"
+     message="svnVersion: ${build.svnVersion}${line.separator}"/>
+    <echo append="true"
+     file="${lib}/com/google/caja/reporting/buildInfo.properties"
+     message="timestamp: ${build.timestamp}${line.separator}"/>
+  </target>
+
+  <target name="RuleDoclet" depends="Quasiliterals">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/quasiliteral/*Doclet.java"/>
+      <include name="**/caja/tools/DocletAntTask.java"/>
+
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+    <taskdef name="ruledoclet" classname="com.google.caja.tools.DocletAntTask"
+     classpathref="classpath.run" onerror="ignore"/>
+  </target>
+
+  <target name="PluginCompiler"
+   depends="CssParser,HtmlParser,Quasiliterals,Rendering,Schemas">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/plugin/*.java"/>
+      <include name="**/caja/plugin/stages/*.java"/>
+      <include name="**/caja/plugin/templates/*.java"/>
+
+      <exclude name="**/caja/plugin/*Main.java"/>
+      <exclude name="**/caja/plugin/BuildServiceImplementation.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+    <copy todir="${lib}">
+      <fileset dir="${third_party}">
+      </fileset>
+      <fileset dir="${src}">
+        <include name="**/caja/plugin/bridal.js"/>
+        <include name="**/caja/plugin/domita.js"/>
+        <include name="**/caja/plugin/html-emitter.js"/>
+        <include name="**/caja/plugin/html-sanitizer.js"/>
+        <include name="**/caja/plugin/unicode.js"/>
+        <include name="**/caja/plugin/plugin-base.js"/>
+        <include name="**/caja/plugin/templates/*.json"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <!-- Builds the cajoling service. -->
+  <target name="CajolingService"
+   depends="CssParser,HtmlParser,Quasiliterals,Rendering,Schemas">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/service/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+
+  <target name="Config" depends="Reporting">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/config/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="Schemas" depends="dirs,Config">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/lang/*/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+    <copy todir="${lib}">
+      <fileset dir="${src}">
+        <include name="**/caja/lang/*/*.json"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="CssParser" depends="ParserCore,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/parser/css/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="HtmlParser" depends="ParserCore,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/parser/html/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="JsParser" depends="ParserCore,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/parser/ParserBase.java"/>
+      <include name="**/caja/parser/js/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="Quasiliterals" depends="JsParser,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/parser/quasiliteral/*.java" />
+    </javac>
+  </target>
+
+  <target name="ParserCore" depends="Primitives,Reporting,Lexer,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/parser/*.java"/>
+      <exclude name="**/caja/parser/ParserBase.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="Lexer" depends="Primitives,Reporting,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/lexer/*.java"/>
+      <include name="**/caja/lexer/escaping/*.java"/>
+      <exclude name="**/caja/lexer/ExternalReference.java"/>
+      <exclude name="**/caja/lexer/FilePosition.java"/>
+      <exclude name="**/caja/lexer/InputSource.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="Reporting" depends="Primitives,dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/CajaException.java"/>
+      <include name="**/caja/reporting/*.java"/>
+      <exclude name="**/caja/reporting/MessageContext.java"/>
+      <exclude name="**/caja/reporting/MessagePart.java"/>
+      <exclude name="**/caja/reporting/RenderContext.java"/>
+      <exclude name="**/caja/reporting/Renderable.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="Rendering" depends="Lexer,Reporting">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/render/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="Primitives" depends="dirs">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/lexer/ExternalReference.java"/>
+      <include name="**/caja/lexer/FilePosition.java"/>
+      <include name="**/caja/lexer/InputSource.java"/>
+      <include name="**/caja/reporting/MessageContext.java"/>
+      <include name="**/caja/reporting/MessagePart.java"/>
+      <include name="**/caja/reporting/RenderContext.java"/>
+      <include name="**/caja/reporting/Renderable.java"/>
+      <include name="**/caja/util/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="lolcat-search" depends="dirs,pluginc,MinifiedJs"
+   description="IM IN UR BUILD DEMOING UR GADGETZ">
+    <transform>
+      <output file="${www}/lolcat-search/searchbox.co.html"
+       language="cajita"/>
+      <include file="${demos}/lolcat-search/searchbox.html"/>
+      <depend file="${demos}/lolcat-search/searchbox.css"/>
+      <depend file="${demos}/lolcat-search/searchbox.js"/>
+    </transform>
+    <transform>
+      <output file="${www}/lolcat-search/kittens.co.html" language="cajita"/>
+      <include file="${demos}/lolcat-search/kittens.html"/>
+      <depend file="${demos}/lolcat-search/katTranzlator.js"/>
+      <depend file="${demos}/lolcat-search/kittens.js"/>
+    </transform>
+
+    <copy todir="${www}/lolcat-search">
+      <fileset dir="${demos}/lolcat-search">
+        <include name="chtml.js"/>
+        <include name="error.jpg"/>
+        <include name="loading.jpg"/>
+        <include name="search.html"/>
+        <include name="searchengine.js"/>
+      </fileset>
+      <fileset dir="${lib}/com/google/caja/plugin">
+        <include name="domita-minified.js"/>
+        <include name="html-sanitizer-minified.js"/>
+      </fileset>
+      <fileset dir="${src}/com/google/caja">
+        <include name="log-to-console.js"/>
+      </fileset>
+      <fileset dir="${third_party}/js/firebug">
+        <include name="firebugx.js"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="slides" depends="dirs,pluginc,MinifiedJs,CajoledValija,lolcat-search"
+   description="Explain Caja">
+    <transform>
+      <output file="${www}/slides/redirection.co.html" language="valija"/>
+      <include file="${demos}/slides/redirection.html"/>
+    </transform>
+    <transform>
+      <output file="${www}/slides/history.co.html" language="valija"/>
+      <include file="${demos}/slides/history.html"/>
+    </transform>
+    <transform>
+      <output file="${www}/slides/cookie.co.html" language="valija"/>
+      <include file="${demos}/slides/cookie.html"/>
+    </transform>
+    <transform>
+      <output file="${www}/slides/script-injection.co.html" language="valija"/>
+      <include file="${demos}/slides/script-injection.html"/>
+    </transform>
+    <transform>
+      <output file="${www}/slides/tame-alert.co.html" language="valija"/>
+      <include file="${demos}/slides/tame-alert.html"/>
+    </transform>
+
+    <transform>
+      <output file="${www}/slides/searchbox.co.html"
+       language="cajita"/>
+      <include file="${demos}/lolcat-search/searchbox.html"/>
+      <depend file="${demos}/lolcat-search/searchbox.css"/>
+      <depend file="${demos}/lolcat-search/searchbox.js"/>
+    </transform>
+    <transform>
+      <output file="${www}/slides/kittens.co.html" language="cajita"/>
+      <include file="${demos}/lolcat-search/kittens.html"/>
+      <depend file="${demos}/lolcat-search/katTranzlator.js"/>
+      <depend file="${demos}/lolcat-search/kittens.js"/>
+    </transform>
+
+    <copy todir="${www}/slides">
+      <fileset dir="${lib}/com/google/caja/plugin">
+        <include name="unicode.js"/>
+        <include name="html-sanitizer.js"/>
+        <include name="html-emitter.js"/>
+        <include name="css-defs.js"/>
+        <include name="html4-defs.js"/>
+        <include name="valija.co.js"/>
+        <include name="bridal.js"/>
+        <include name="domita.js"/>
+        <include name="domita-minified.js"/>
+        <include name="html-sanitizer-minified.js"/>
+      </fileset>
+      <fileset dir="${third_party}/js/prettify/">
+        <include name="prettify.js"/>
+      </fileset>
+      <fileset dir="${third_party}/js/firebug/">
+        <include name="firebugx.js"/>
+      </fileset>
+      <fileset dir="${src}/com/google/caja/demos/applet/">
+      <include name="setup-valija.js"/>
+      </fileset>
+
+      <!-- Copy slide container from slides/ -->
+      <fileset dir="${demos}/slides">
+        <include name="index.html"/>
+        <include name="slidy.js"/>
+        <include name="slidy.css"/>
+        <include name="cajaslides.css"/>
+
+        <include name="redirection.html"/>
+        <include name="history.html"/>
+        <include name="cookie.html"/>
+        <include name="script-injection.html"/>
+        <include name="tame-alert.html"/>
+      </fileset>
+
+      <!-- Copy demo from lolcat -->
+      <fileset dir="${demos}/lolcat-search">
+        <include name="chtml.js"/>
+        <include name="error.jpg"/>
+        <include name="loading.jpg"/>
+        <include name="lolcat-search.png"/>
+        <include name="sandboxes-to-playgrounds.png"/>
+        <include name="DecomposeByFailureMode.png"/>
+        <include name="searchengine.js"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="TestbedClasses" depends="dirs"
+   description="Produce an Applet that interactively cajoles in the browser.">
+    <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
+      <src path="${src}"/>
+      <classpath refid="classpath.compile"/>
+      <include name="**/caja/demos/applet/*.java"/>
+      <compilerarg line="-Xlint:unchecked"/>
+    </javac>
+  </target>
+
+  <target name="testbed" depends="dirs,TestbedClasses,jars"
+   description="Produce an Applet that interactively cajoles in the browser.">
+    <jar destfile="${jars}/testbed.jar" basedir="${lib}">
+      <manifest>
+        <attribute name="Main-Class"
+         value="com.google.caja.demos.applet.CajaApplet"/>
+      </manifest>
+    </jar>
+
+    <mkdir dir="${www}/testbed"/>
+    <copy todir="${www}/testbed">
+      <fileset dir="${src}/com/google/caja">
+        <include name="cajita.js"/>
+        <include name="cajita-debugmode.js"/>
+        <include name="console.js"/>
+        <include name="log-to-console.js"/>
+      </fileset>
+      <fileset dir="${src}/com/google/caja/plugin">
+        <include name="bridal.js"/>
+        <include name="domita.js"/>
+        <include name="html-emitter.js"/>
+        <include name="html-sanitizer.js"/>
+        <include name="unicode.js"/>
+      </fileset>
+      <fileset dir="${lib}/com/google/caja/plugin">
+        <include name="css-defs.js"/>
+        <include name="html4-defs.js"/>
+        <include name="valija.co.js"/>
+      </fileset>
+      <fileset dir="${third_party}/js/prettify">
+      	<include name="lang-css.js"/>
+      	<include name="prettify.js"/>
+        <include name="prettify.css"/>
+      </fileset>
+      <fileset dir="${src}/com/google/caja/demos/applet">
+        <include name="*.html"/>
+        <include name="*.js"/>
+        <include name="*.css"/>
+        <include name="*.png"/>
+      </fileset>
+      <fileset dir="${jars}">
+        <include name="testbed.jar"/>
+        <include name="htmlparser.jar"/>
+        <include name="json_simple.jar"/>
+        <include name="xercesImpl.jar"/>
+      </fileset>
+    </copy>
+
+    <copy file="${src}/com/google/caja/demos/applet/index.html"
+     tofile="${www}/testbed/debug.html"/>
+    <replace file="${www}/testbed/debug.html">
+     <replacetoken><![CDATA[<script type="text/javascript" src="cajita-combined-min.js"></script>]]></replacetoken>
+     <replacevalue><![CDATA[
+       <script type="text/javascript" src="json_sans_eval.js"></script>
+       <script type="text/javascript" src="cajita.js"></script>
+       <script type="text/javascript" src="console.js"></script>
+       <script type="text/javascript" src="log-to-console.js"></script>
+       <script type="text/javascript" src="cajita-debugmode.js"></script>
+       <script type="text/javascript" src="unicode.js"></script>
+       <script type="text/javascript" src="css-defs.js"></script>
+       <script type="text/javascript" src="html4-defs.js"></script>
+       <script type="text/javascript" src="html-sanitizer.js"></script>
+       <script type="text/javascript" src="html-emitter.js"></script>
+       <script type="text/javascript" src="setup-valija.js"></script>
+       <script type="text/javascript" src="bridal.js"></script>
+       <script type="text/javascript" src="domita.js"></script>
+       <script type="text/javascript" src="prettify.js"></script>
+     	 <script type="text/javascript" src="lang-css.js"></script>
+       <script type="text/javascript" src="testbed.js"></script>
+       <script type="text/javascript" src="valija.co.js"></script>
+       ]]>
+     </replacevalue>
+    </replace>
+    <!-- The following should use the same files as the above list -->
+    <transform>
+      <output file="${www}/testbed/cajita-combined-min.js"
+       language="javascript" renderer="minify"/>
+      <include file="${third_party}/js/json_sans_eval/json_sans_eval.js"/>
+      <include file="${src}/com/google/caja/cajita.js"/>
+      <include file="${src}/com/google/caja/console.js"/>
+      <include file="${src}/com/google/caja/log-to-console.js"/>
+      <include file="${src}/com/google/caja/cajita-debugmode.js"/>
+      <include file="${src}/com/google/caja/plugin/unicode.js"/>
+      <include file="${lib}/com/google/caja/plugin/css-defs.js"/>
+      <include file="${lib}/com/google/caja/plugin/html4-defs.js"/>
+      <include file="${src}/com/google/caja/plugin/html-sanitizer.js"/>
+      <include file="${src}/com/google/caja/plugin/html-emitter.js"/>
+      <include file="${src}/com/google/caja/demos/applet/setup-valija.js"/>
+      <include file="${src}/com/google/caja/plugin/bridal.js"/>
+      <include file="${src}/com/google/caja/plugin/domita.js"/>
+      <include file="${third_party}/js/prettify/prettify.js"/>
+      <include file="${third_party}/js/prettify/lang-css.js"/>
+      <include file="${src}/com/google/caja/demos/applet/testbed.js"/>
+      <include file="${lib}/com/google/caja/plugin/valija.co.js"/>
+    </transform>
+  </target>
+
+  <target name="calendar" depends="dirs,pluginc,MinifiedJs,jars"
+   description="A calendar that can mine data from a read only DOM.">
+    <mkdir dir="${www}/calendar"/>
+
+    <transform>
+      <output language="javascript" renderer="minify"
+       file="${lib}/com/google/caja/demos/calendar/html-interp-minified.js"/>
+      <include
+       file="${demos}/calendar/string-interpolation.js"/>
+      <include file="${demos}/calendar/html-interp.js"/>
+    </transform>
+    <transform>
+      <output file="${lib}/com/google/caja/demos/calendar/calendar-minified.js"
+       language="javascript" renderer="minify"/>
+      <include file="${demos}/calendar/util.js"/>
+      <include file="${demos}/calendar/bitset.js"/>
+      <include file="${lib}/com/google/caja/plugin/html4-defs.js"/>
+      <include file="${src}/com/google/caja/plugin/html-sanitizer.js"/>
+      <include file="${demos}/calendar/uformat.js"/>
+      <include file="${demos}/calendar/time-cajita.js"/>
+      <include file="${demos}/calendar/weekday-cajita.js"/>
+      <include file="${demos}/calendar/timezone-cajita.js"/>
+      <include file="${demos}/calendar/time_util-cajita.js"/>
+      <include file="${demos}/calendar/hcalendar.js"/>
+      <include file="${demos}/calendar/generators-cajita.js"/>
+      <include file="${demos}/calendar/instanceGenerators-cajita.js"/>
+      <include file="${demos}/calendar/conditions-cajita.js"/>
+      <include file="${demos}/calendar/predicates-cajita.js"/>
+      <include file="${demos}/calendar/filters-cajita.js"/>
+      <include file="${demos}/calendar/rrule-cajita.js"/>
+      <include file="${demos}/calendar/event.js"/>
+      <include file="${demos}/calendar/chip.js"/>
+      <include file="${demos}/calendar/calendar.js"/>
+      <include file="${demos}/calendar/event_store.js"/>
+      <include file="${demos}/calendar/axis.js"/>
+      <include file="${demos}/calendar/layout_policy.js"/>
+      <include file="${demos}/calendar/layout.js"/>
+      <include file="${demos}/calendar/overlap.js"/>
+      <include file="${demos}/calendar/widget.js"/>
+      <include file="${demos}/calendar/widget-html.js"/>
+      <include file="${demos}/calendar/main.js"/>
+    </transform>
+    <transform>
+      <output file="${lib}/com/google/caja/demos/calendar/calendar.vo.js"
+       language="valija" debug="false"/>
+      <include file="${demos}/calendar/widget.css"/>
+      <include file="${demos}/calendar/util.js"/>
+      <include file="${demos}/calendar/bitset.js"/>
+      <include file="${lib}/com/google/caja/plugin/html4-defs.js"/>
+      <include file="${src}/com/google/caja/plugin/html-sanitizer.js"/>
+      <include file="${demos}/calendar/uformat.js"/>
+      <include file="${demos}/calendar/time-cajita.js"/>
+      <include file="${demos}/calendar/weekday-cajita.js"/>
+      <include file="${demos}/calendar/timezone-cajita.js"/>
+      <include file="${demos}/calendar/time_util-cajita.js"/>
+      <include file="${demos}/calendar/hcalendar.js"/>
+      <include file="${demos}/calendar/generators-cajita.js"/>
+      <include file="${demos}/calendar/instanceGenerators-cajita.js"/>
+      <include file="${demos}/calendar/conditions-cajita.js"/>
+      <include file="${demos}/calendar/predicates-cajita.js"/>
+      <include file="${demos}/calendar/filters-cajita.js"/>
+      <include file="${demos}/calendar/rrule-cajita.js"/>
+      <include file="${demos}/calendar/event.js"/>
+      <include file="${demos}/calendar/chip.js"/>
+      <include file="${demos}/calendar/calendar.js"/>
+      <include file="${demos}/calendar/event_store.js"/>
+      <include file="${demos}/calendar/axis.js"/>
+      <include file="${demos}/calendar/layout_policy.js"/>
+      <include file="${demos}/calendar/layout.js"/>
+      <include file="${demos}/calendar/overlap.js"/>
+      <include file="${demos}/calendar/widget.js"/>
+      <include file="${demos}/calendar/widget-html.js"/>
+      <include file="${demos}/calendar/main.js"/>
+    </transform>
+    <copy todir="${www}/calendar">
+      <fileset dir="${src}/com/google/caja">
+        <include name="cajita.js"/>
+        <include name="cajita-debugmode.js"/>
+      </fileset>
+      <fileset dir="${lib}/com/google/caja/demos/calendar">
+        <include name="*-minified.js"/>
+        <include name="*.vo.js"/>
+        <include name="*.co.js"/>
+      </fileset>
+      <fileset dir="${demos}/calendar">
+        <include name="demo.html"/>
+        <include name="demo-cajoled.html"/>
+        <include name="widget.css"/>
+      </fileset>
+      <fileset dir="${lib}/com/google/caja/plugin">
+        <include name="domita-minified.js"/>
+        <include name="html-sanitizer-minified.js"/>
+        <include name="valija.co.js"/>
+      </fileset>
+      <fileset dir="${third_party}/js/firebug">
+        <include name="firebugx.js"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <!--
+    - Enable Emma
+    -
+    - See
+    - * http://wiki.metawerx.net/Wiki.jsp
+    -   ?page=UsingEMMAWithANTForJUnitTestCoverageReporting
+    - * http://emma.sourceforge.net/reference_single/reference.html#tool-ref.run
+   -->
+  <target name="emma" depends="dirs"
+   description="Turns on EMMA instrumentation and reporting.">
+    <property name="emma.enabled" value="true" />
+    <!--
+      - See http://emma.sourceforge.net/reference/ch02s06s02.html
+      - This property can be overriden via -Demma.filter=<list of filter specs>
+      - on ANT's command line, will set the coverage filter; by default, all
+      - com.google classes found in ${lib} will be instrumented.
+      - org.commons.cli.apache and other third_party classes will not be.
+     -->
+    <property name="emma.filter" value="com.google.*"/>
+  </target>
+
+</project>

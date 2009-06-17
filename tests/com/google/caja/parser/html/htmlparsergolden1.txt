@@ -1,0 +1,109 @@
+Block
+  FunctionDeclaration
+    Identifier : ___com_google_caja_parser_html_htmlparsertest1_gxp___ln_5__ch_14
+    FunctionConstructor
+      Identifier
+      FormalParam
+        Identifier : event
+      Block
+        Block
+          ExpressionStmt
+            ControlOperation : LOGICAL_AND
+              SpecialOperation : FUNCTION_CALL
+                Reference
+                  Identifier : loading
+              SpecialOperation : FUNCTION_CALL
+                Reference
+                  Identifier : loaded
+        ReturnStmt
+          BooleanLiteral : true
+  Block
+    ExpressionStmt
+      SpecialOperation : FUNCTION_CALL
+        SpecialOperation : MEMBER_ACCESS
+          Reference
+            Identifier : document
+          Reference
+            Identifier : writeln
+        StringLiteral : "generated from script tag"
+    Declaration
+      Identifier : b
+      ControlOperation : LOGICAL_AND
+        Reference
+          Identifier : c
+        Reference
+          Identifier : d
+  FunctionDeclaration
+    Identifier : ___com_google_caja_parser_html_htmlparsertest1_gxp___ln_15__ch_9
+    FunctionConstructor
+      Identifier
+      FormalParam
+        Identifier : event
+      Block
+        Block
+          ExpressionStmt
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : clicky
+        ReturnStmt
+          BooleanLiteral : true
+  FunctionDeclaration
+    Identifier : ___com_google_caja_parser_html_htmlparsertest1_gxp___ln_17__ch_14
+    FunctionConstructor
+      Identifier
+      FormalParam
+        Identifier : event
+      Block
+        Block
+          ExpressionStmt
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : divWasClicked
+              Reference
+                Identifier : event
+        ReturnStmt
+          BooleanLiteral : true
+  Block
+    Declaration
+      Identifier : b
+      ControlOperation : LOGICAL_AND
+        Reference
+          Identifier : c
+        Reference
+          Identifier : d
+    ExpressionStmt
+      AssignOperation : ASSIGN
+        Reference
+          Identifier : b
+        ControlOperation : LOGICAL_AND
+          Reference
+            Identifier : e
+          Reference
+            Identifier : f
+    ExpressionStmt
+      SpecialOperation : FUNCTION_CALL
+        SpecialOperation : MEMBER_ACCESS
+          Reference
+            Identifier : document
+          Reference
+            Identifier : writeln
+        SimpleOperation : ADDITION
+          StringLiteral : 'Hi '
+          Reference
+            Identifier : _
+  FunctionDeclaration
+    Identifier : ___com_google_caja_parser_html_htmlparsertest1_gxp___ln_36__ch_27
+    FunctionConstructor
+      Identifier
+      FormalParam
+        Identifier : event
+      Block
+        Block
+          ExpressionStmt
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : handleThwacking
+              Reference
+                Identifier : this
+        ReturnStmt
+          BooleanLiteral : true

@@ -1,0 +1,295 @@
+<!--
+  --
+  -- Licensed under the Apache License, Version 2.0 (the "License");
+  -- you may not use this file except in compliance with the License.
+  -- You may obtain a copy of the License at
+  --
+  -- http://www.apache.org/licenses/LICENSE-2.0
+  --
+  -- Unless required by applicable law or agreed to in writing, software
+  -- distributed under the License is distributed on an "AS IS" BASIS,
+  -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  -- See the License for the specific language governing permissions and
+  -- limitations under the License.
+  -->
+
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+
+<html>
+
+<head>
+  <title>Module System for ES-Harmony</title>
+  <link type="text/css" rel="stylesheet" href="../../../../doc/html/common/documentStyle.css"/>
+  <link type="text/css" rel="stylesheet" href="../../../../doc/html/common/prettify.css"/>
+  <script type="text/javascript" src="../../../../doc/html/common/prettify.js"></script>
+  <script type="text/javascript"  src="../../../../doc/html/common/headingNumbers.js"></script>
+
+  <script type="text/javascript">
+    function doOnload() {
+      numberDocument();
+      prettyPrint();
+    }
+  </script>
+
+</head>
+
+<body onload="doOnload();">
+
+<div class="title">Module System for ES-Harmony</div>
+
+<center>
+<em>Ihab Awad and Kris Kowal</em><br/>
+<br/>
+<strong>PRELIMINARY</strong>
+</center>
+
+<h1>Introduction</h1>
+
+<p>This is a proposal for a module system for inclusion in ES-Harmony
+and possible prototyping prior to standardization.</p>
+
+<p>We have at least two main concerns: how an ES module is written,
+and how it is used by clients. To start the discussion, we will fix
+the <em>desugared</em> format of an ES module. We will then describe
+the various means in which such a module may be used by
+clients. Finally, we will return to the module format, at which point
+we will describe the syntactic sugar for generating module
+definitions, and explain how ES programs written without knowledge of
+the module system can act as modules.</p>
+
+<h1>Desugared module format</h1>
+
+<dl>
+  <dt>Closed function</dt>
+  <dd>A function that has no free variables.</dd>
+</dl>
+
+<p>We assume that an ES module is a closed function which takes a
+single argument (which we call <code class="prettyprint">$</code> as a
+placeholder) and returns exactly one ES object, for example:</p>
+
+<pre class="prettyprint">
+function ($) {
+  var background = $.background;
+  var document = $.document;
+  var isOn = false;
+  return {
+    toggle: function() {
+      document.setBackgroundColor(isOn ?
+          background : '#ffffff');
+      isOn = !isOn;
+    },
+    set: function() {
+      document.setBackgroundColor(background);
+      isOn = true;
+  };
+}
+</pre>
+
+<dl>
+  <dt>Module text</dt>
+  <dd>The physical text of a module.</dd>
+
+  <dt>Module constructor</dt>
+  <dd>The ES function value that is produced by compiling the module text.</dd>
+</dl>
+
+<h1>Module loaders</h1>
+
+<dl>
+  <dt>Module identifier</dt>
+  <dd>A datum that identifies some module text.</dd>
+
+  <dt>Module loader</dt>
+  <dd>A function that maps module identifiers to module functions.</dd>
+</dl>
+
+<p>Module loaders are installation-dependent. For example, the Web
+browser environment may provide a module loader which accepts module
+identifiers in the form of URIs to the module text:</p>
+
+<pre class="prettyprint">
+var moduleFcn = uriLoader("http://example.com/myModule.js");
+</pre>
+
+<p>Another loader may require a module identifier consisting of a
+dotted name and a version range:</p>
+
+<pre class="prettyprint">
+var moduleFcn = nameLoader({
+  name: "org.example.aModule",
+  version: { min: "1.37", max: "1.41" }
+});
+</pre>
+
+<p>Yet another may allow path names relative to the importing
+module:</p>
+
+<pre class="prettyprint">
+var moduleFcn = pathLoader("../util/containers.js");
+</pre>
+
+<div class="note">We seem to be saying that module loading is possible
+as a run-time event, not the result of some statically recognizable
+syntax. How then do we deal with asynchronous
+loading? <strong>Kris</strong> has some ideas (sugared syntax which
+desugars to continuation passing?). Is this an opportunity to start
+talking about standard ES-Harmony future objects?</div>
+
+<h1>Isolated module instantiation</h1>
+
+<p>The simplest and most locally analyzable way to use a module
+function is to explicitly supply it with its imports and explicitly
+receive its exports. Since the module function is closed, each
+invocation creates an object graph provably disjoint from that created
+by previous invocations except as explicitly provided for by the
+imports supplied by the caller.</p>
+
+<dl>
+<dt>Module instance</dt>
+<dd>The value returned from the invocation of a module
+constructor.</dd>
+</dl>
+
+<pre class="prettyprint">
+var docA = /* ... */;
+var colorA = /* ... */;
+
+var docB = /* ... */;
+var colorB = /* ... */;
+
+// Instantiate and assign entire return value of module function
+var controlA =
+    moduleFcn({ document: docA, bgColor: colorA });
+
+// Use the first module instance ...
+controlA.toggle();
+controlA.set();
+
+// Instantiate with destructuring assignment to individual symbols
+var { toggle: toggleB, set: setB } =
+    moduleFcn({ document: docB, bgColor: colorB });
+
+// Use the second module instance ...
+toggleB();
+setB();
+</pre>
+
+<p>When we only need to create one instance, we can combine loading
+and instantiation, with destructuring assignment, into one
+expression:</p>
+
+<pre class="prettyprint">
+var docA = /* ... */;
+var colorA = /* ... */;
+
+var { toggle: toggleIt, set: setIt } =
+    loader.loadUrl('http://example.com/someModule.js')
+    ({ document: docA, bgColor: colorA });
+
+toggleIt();
+setIt();
+</pre>
+
+<h1>Sandboxed module instantiation</h1>
+
+<p>In the most common use of programming language modules, each module
+is a singleton (within the importing program's universe of discourse).</p>
+
+<dl>
+<dt>Sandbox</dt>
+<dd>An object which caches singleton module instances by module
+name. A sandbox is created with an immutable list of imports for
+instantiating modules.</dd>
+</dl>
+
+<p>Since a sandbox defines a fixed set of imports for many disparate
+modules, its imports will likely follow some well-known criteria. For
+example, a sandbox for modules in a Web page may contain the
+well-known imports <code class="prettyprint">document</code>
+and <code class="prettyprint">window</code>, each implementing a
+well-known API:</p>
+
+<pre class="prettyprint">
+var aDocument = /* ... */;
+var aWindow = /* ... */;
+
+var sbx = makeSandbox({ document: aDocument, window: aWindow });
+sbx.importUri("http://example.com/initialModule.js");
+</pre>
+
+<p>Subsequent calls to an import function of this sandbox (such
+as <code class="prettyprint">importUri</code> shown above) with the
+same module identifier will return a memoized copy of the initially
+created module instance.</p>
+
+<p>Within a sandboxed module, the instantiating sandbox is available
+as the variable <code class="prettyprint">sandbox</code> and can be
+used to import dependent modules:</p>
+
+<pre class="prettyprint">
+/* Within initialModule.js ... */
+var otherModule = sandbox.importUri("http://example.net/otherModule.js");
+</pre>
+
+<div class="note">Do we really like the variable
+name <code class="prettyprint">sandbox</code>? Yeesh.</div>
+
+
+<h1>Syntactic Considerations</h1>
+
+
+<pre class="prettyprint">
+// The top level of a modularized compilation unit starts
+// with the 'module' keyword and declares its imports explicitly
+// (except for primordials: Array, Object, ...).
+
+module (a, b) {
+
+  // Define a function scope:
+
+  var x = function(c, d) {
+
+    // Define a *nested* module:
+    // Should we go there or is this a redundant
+    // abomination?
+
+    var y = module (e, f) {
+      // Code here is isolated from the parent
+      // scope chain. It only has access to primordials
+      // and the arguments 'e' and 'f'.
+    };
+
+    // The module value 'y' is just a function:
+    y(a, b);
+    y(c, f);
+  };
+}
+</pre>
+
+<div class="note">Discuss the various import statement forms.
+<strong>Kris</strong>?</div>
+
+<h2>Module metadata</h2>
+
+<p>To enforce clean isolation, our proposal does not allow modules to
+name themselves or their contents in their client's universe of
+discourse. However, it may be useful for the module constructor to
+support standard (or user-defined?) metadata:</p>
+
+<pre class="prettyprint">
+var m = loadUrl('http://example.com/someModule.js');
+
+m.name;    // &rarr; 'com.example.someModule'
+m.version; // &rarr; '1.8.10b'
+m.author;  // &rarr; 'Alyssa P Hacker &lt;hacker@example.com&gt;'
+m.imports; // &rarr; [ 'document', 'background' ]
+m.exports; // &rarr; [ 'toggleIt', 'setIt' ]
+</pre>
+
+<div class="note">How is this metadata supplied by the module author?
+Via more syntactic sugar?</div>
+
+</body>
+
+</html>

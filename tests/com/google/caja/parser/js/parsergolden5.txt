@@ -1,0 +1,128 @@
+Block
+  ExpressionStmt
+    SpecialOperation : FUNCTION_CALL
+      FunctionConstructor
+        Identifier
+        Block
+          ExpressionStmt
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : alert
+              StringLiteral : 'hello world'
+  ExpressionStmt
+    SpecialOperation : FUNCTION_CALL
+      FunctionConstructor
+        Identifier : a
+        Block
+          ExpressionStmt
+            SpecialOperation : FUNCTION_CALL
+              Reference
+                Identifier : alert
+              StringLiteral : 'hello world'
+  ExpressionStmt
+    FunctionConstructor
+      Identifier
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : alert
+            StringLiteral : 'hello world'
+  ExpressionStmt
+    FunctionConstructor
+      Identifier : b
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : alert
+            StringLiteral : 'hello world'
+  FunctionDeclaration
+    Identifier : c
+    FunctionConstructor
+      Identifier : c
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : alert
+            StringLiteral : 'hello world'
+  Noop
+  ExpressionStmt
+    FunctionConstructor
+      Identifier
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : alert
+            StringLiteral : 'hello world'
+  Declaration
+    Identifier : d
+    FunctionConstructor
+      Identifier
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : alert
+            StringLiteral : 'hello world'
+  Declaration
+    Identifier : e
+    FunctionConstructor
+      Identifier : f
+      Block
+        ExpressionStmt
+          SpecialOperation : FUNCTION_CALL
+            Reference
+              Identifier : alert
+            StringLiteral : 'hello world'
+  ExpressionStmt
+    SpecialOperation : FUNCTION_CALL
+      SpecialOperation : MEMBER_ACCESS
+        ObjectConstructor
+          StringLiteral : 'x'
+          IntegerLiteral : 4
+          StringLiteral : 'y'
+          IntegerLiteral : 5
+          StringLiteral : 'invoke'
+          FunctionConstructor
+            Identifier
+            Block
+              ExpressionStmt
+                SpecialOperation : FUNCTION_CALL
+                  Reference
+                    Identifier : doSomething
+                  Reference
+                    Identifier : this
+                  SimpleOperation : ADDITION
+                    SpecialOperation : MEMBER_ACCESS
+                      Reference
+                        Identifier : this
+                      Reference
+                        Identifier : x
+                    SpecialOperation : MEMBER_ACCESS
+                      Reference
+                        Identifier : this
+                      Reference
+                        Identifier : y
+        Reference
+          Identifier : invoke
+  Block
+    LabeledStmtWrapper : block
+      ExpressionStmt
+        IntegerLiteral : 4
+  ExpressionStmt
+    ObjectConstructor
+      StringLiteral : 'objet'
+      IntegerLiteral : 4
+  ExpressionStmt
+    SpecialOperation : FUNCTION_CALL
+      Reference
+        Identifier : eval
+      StringLiteral : 'foo'
+  ExpressionStmt
+    SpecialOperation : FUNCTION_CALL
+      Reference
+        Identifier : évａl
+      StringLiteral : 'foo'
