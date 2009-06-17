@@ -2990,13 +2990,23 @@ var attachDocumentStub = (function () {
     TameHTMLDocument.prototype.getOwnerDocument = function () {
       return null;
     };
+
+    function asDisFunc(f) {
+      if (typeof f === 'object' && f !== null
+          && ___.canCallPub(f, 'call')) {
+        return f;
+      } else {
+        return ___.asFunc(f);
+      }
+    }
+
     // Called by the html-emitter when the virtual document has been loaded.
     TameHTMLDocument.prototype.signalLoaded___ = function () {
       var listeners = this.onLoadListeners___;
       this.onLoadListeners___ = [];
       for (var i = 0, n = listeners.length; i < n; ++i) {
         (function (listener) {
-          var listenerFn = ___.asFunc(listener);
+          var listenerFn = asDisFunc(listener);
           setTimeout(function () { listenerFn.call(cajita.USELESS); }, 0);
         })(listeners[i]);
       }
@@ -3330,8 +3340,7 @@ var attachDocumentStub = (function () {
       clearInterval: tameClearInterval,
       addEventListener: ___.frozenFunc(function (name, listener, useCapture) {
         if (name === 'load') {
-          ___.asFunc(listener);
-          tameDocument.onLoadListeners___.push(listener);
+          tameDocument.onLoadListeners___.push(asDisFunc(listener));
         }
       }),
       removeEventListener: ___.frozenFunc(function (name, listener, useCapture) {
