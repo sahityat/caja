@@ -161,6 +161,10 @@ var cajole = (function () {
       // Set up the outer new module handler
       ___.setNewModuleHandler(imports.newModuleHandler___);
 
+      // Load the HTML
+      var htmlContainer = document.getElementById('caja-html' + uiSuffix);
+      htmlContainer.innerHTML = htmlText;
+
       // Load the script
       try {
         eval(script);
