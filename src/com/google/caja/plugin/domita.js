@@ -1585,7 +1585,13 @@ var attachDocumentStub = (function () {
       this.parentNodeGetter___ = parentNodeGetter;
       this.innerHTMLGetter___ = innerHTMLGetter;
       this.geometryDelegate___ = geometryDelegate;
-      classUtils.exportFields(this, ['tagName', 'innerHTML']);
+      classUtils.exportFields(
+          this,
+          ['tagName', 'innerHTML',
+           'offsetLeft', 'offsetTop',
+           'offsetWidth', 'offsetHeight',
+           'scrollLeft', 'scrollTop',
+           'scrollWidth', 'scrollHeight']);
     }
     classUtils.extend(TamePseudoElement, TamePseudoNode);
     // TODO(mikesamuel): make nodeClasses work.
@@ -1805,7 +1811,13 @@ var attachDocumentStub = (function () {
       classUtils.exportFields(
           this,
           ['className', 'id', 'innerHTML', 'tagName', 'style',
-           'offsetParent', 'title', 'dir']);
+           'clientWidth', 'clientHeight',
+           'offsetLeft', 'offsetTop',
+           'offsetWidth', 'offsetHeight',
+           'offsetParent',
+           'scrollLeft', 'scrollTop',
+           'scrollWidth', 'scrollHeight',
+           'title', 'dir']);
     }
     classUtils.extend(TameElement, TameBackedNode);
     nodeClasses.Element = nodeClasses.HTMLElement = TameElement;
@@ -2062,10 +2074,12 @@ var attachDocumentStub = (function () {
       }
     }, ___.func(function (propertyName, def) {
       var setter = def.set || propertyOnlyHasGetter;
-      ___.useGetHandler(TameElement.prototype, propertyName, def.get);
-      ___.useSetHandler(TameElement.prototype, propertyName, setter);
-      ___.useGetHandler(TamePseudoElement.prototype, propertyName, def.get);
-      ___.useSetHandler(TamePseudoElement.prototype, propertyName, setter);
+      var camel = propertyName.charAt(0).toUpperCase()
+          + propertyName.substring(1);
+      TameElement.prototype['get' + camel] = def.get;
+      TameElement.prototype['set' + camel] = setter;
+      TamePseudoElement.prototype['get' + camel] = def.get;
+      TamePseudoElement.prototype['set' + camel] = setter;
     }));
 
     // Register set handlers for onclick, onmouseover, etc.
@@ -3070,7 +3084,7 @@ var attachDocumentStub = (function () {
     function TameStyle(style, editable) {
       this.style___ = style;
       this.editable___ = editable;
-      ___.grantCall(this, 'getPropertyValue');
+      ___.grantFunc(this, 'getPropertyValue');
     }
     nodeClasses.Style = TameStyle;
     TameStyle.prototype.allowProperty___ = function (cssPropertyName) {
