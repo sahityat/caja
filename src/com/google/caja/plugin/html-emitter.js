@@ -234,6 +234,15 @@ function HtmlEmitter(base, opt_tameDocument) {
     return this;
   }
 
+  function append(html) {
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    while (d.firstChild) {
+      base.appendChild(d.firstChild);
+    }
+  }
+
+  this.append = append;
   this.byId = byId;
   this.attach = attach;
   this.unwrap = unwrap;

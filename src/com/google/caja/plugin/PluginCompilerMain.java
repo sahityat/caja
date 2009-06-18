@@ -16,6 +16,7 @@ package com.google.caja.plugin;
 
 import com.google.caja.lexer.CharProducer;
 import com.google.caja.lexer.CssTokenType;
+import com.google.caja.lexer.FilePosition;
 import com.google.caja.lexer.HtmlLexer;
 import com.google.caja.lexer.InputSource;
 import com.google.caja.lexer.JsLexer;
@@ -27,8 +28,11 @@ import com.google.caja.parser.AncestorChain;
 import com.google.caja.parser.ParseTreeNode;
 import com.google.caja.parser.css.CssParser;
 import com.google.caja.parser.html.DomParser;
+import com.google.caja.parser.html.Nodes;
 import com.google.caja.parser.js.CajoledModule;
+import com.google.caja.parser.js.Expression;
 import com.google.caja.parser.js.Parser;
+import com.google.caja.parser.js.StringLiteral;
 import com.google.caja.reporting.Message;
 import com.google.caja.reporting.MessageContext;
 import com.google.caja.reporting.MessageLevel;
@@ -59,6 +63,8 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.HashMap;
+
+import org.w3c.dom.Node;
 
 /**
  * An executable that invokes the {@link PluginCompiler}.
@@ -102,6 +108,7 @@ public final class PluginCompilerMain {
     boolean success = false;
     MessageContext mc = null;
     CajoledModule compiledOutput = null;
+    Node compiledHtml = null;
     try {
       PluginMeta meta = new PluginMeta(makeEnvironment(config));
       meta.setDebugMode(config.debugMode());
@@ -114,6 +121,7 @@ public final class PluginCompilerMain {
 
       success = parseInputs(config.getInputUris(), compiler) && compiler.run();
       if (success) {
+        compiledHtml = compiler.getStaticHtml();
         compiledOutput = compiler.getJavascript();
       }
     } finally {
@@ -123,7 +131,8 @@ public final class PluginCompilerMain {
     }
 
     if (success) {
-      writeFile(config.getOutputJsFile(), compiledOutput);
+      File f = config.getOutputJsFile();
+      writeFile(f, compiledHtml, compiledOutput);
     } else {
       // Make sure there is no previous output file from a failed run.
       config.getOutputJsFile().delete();
@@ -132,6 +141,34 @@ public final class PluginCompilerMain {
     }
 
     return success ? 0 : -1;
+  }
+
+  private String makeEmitHtml(Node html) {
+    if (html == null) return "";
+
+    String htmlString = Nodes.render(html);
+    if (htmlString == null || "".equals(htmlString)) {
+      return "";
+    }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("{ ___.getNewModuleHandler().getImports()");
+    sb.append(".htmlEmitter___.append(\n");
+    sb.append(jsQuoteString(htmlString));
+    sb.append("\n); }\n");
+    return sb.toString();
+  }
+
+  private String jsQuoteString(String s) {
+    Expression e = StringLiteral.valueOf(FilePosition.UNKNOWN, s);
+    StringBuilder sb = new StringBuilder();
+    JsMinimalPrinter pp = new JsMinimalPrinter(new Concatenator(sb));
+    RenderContext rc = new RenderContext(pp);
+    rc.withAsciiOnly(true);
+    rc.withEmbeddable(true);
+    e.render(rc);
+    pp.noMoreTokens();
+    return sb.toString();
   }
 
   private boolean parseInputs(Collection<URI> inputs, PluginCompiler pluginc) {
@@ -199,13 +236,16 @@ public final class PluginCompilerMain {
   }
 
   /** Write the given parse tree to the given file. */
-  private void writeFile(File f, CajoledModule module) {
+  private void writeFile(File f, Node html, CajoledModule module) {
     if (module == null) { return; }
 
     Writer out = null;
 
     try {
       out = new OutputStreamWriter(new FileOutputStream(f), "UTF-8");
+      if (html != null) {
+        out.write(makeEmitHtml(html));
+      }
       if (config.renderer() == Config.SourceRenderMode.DEBUGGER) {
         // Debugger rendering is weird enough to warrant its own method
         writeFileWithDebug(out, module);
