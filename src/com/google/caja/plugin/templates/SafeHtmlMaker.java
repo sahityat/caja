@@ -244,6 +244,7 @@ final class SafeHtmlMaker {
         boolean splitDom = i + 1 < n && bones.get(i + 1) instanceof ScriptBone;
         if (splitDom && i + 1 == firstDeferredScriptIndex) {
           splitDom = false;
+          finish();
         }
         if (splitDom) { start(); }
         if (nb.node instanceof Text) {
