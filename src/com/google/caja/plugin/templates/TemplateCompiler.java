@@ -228,6 +228,13 @@ public class TemplateCompiler {
           } else {
             safeValue = a.getSafeValue();
           }
+          if (safeValue == null) {
+            mq.addMessage(IhtmlMessageType.MISSING_ATTRIB,
+                Nodes.getFilePositionFor(el),
+                MessagePart.Factory.valueOf(elName.toString()),
+                MessagePart.Factory.valueOf(attrNameStr));
+            continue;
+          }
           attr.setNodeValue(safeValue);
           el.setAttributeNode(attr);
         }
@@ -274,7 +281,6 @@ public class TemplateCompiler {
     Expression dynamicValue;
     switch (info.getType()) {
       case CLASSES:
-        if (!checkRestrictedNames(value, pos)) { return; }
         dynamicValue = null;
         break;
       case FRAME_TARGET:

@@ -1694,7 +1694,13 @@ var attachDocumentStub = (function () {
       this.parentNodeGetter___ = parentNodeGetter;
       this.innerHTMLGetter___ = innerHTMLGetter;
       this.geometryDelegate___ = geometryDelegate;
-      classUtils.exportFields(this, ['tagName', 'innerHTML']);
+      classUtils.exportFields(
+          this,
+          ['tagName', 'innerHTML',
+           'offsetLeft', 'offsetTop',
+           'offsetWidth', 'offsetHeight',
+           'scrollLeft', 'scrollTop',
+           'scrollWidth', 'scrollHeight']);
     }
     classUtils.extend(TamePseudoElement, TamePseudoNode);
     // TODO(mikesamuel): make nodeClasses work.
@@ -1903,7 +1909,13 @@ var attachDocumentStub = (function () {
       classUtils.exportFields(
           this,
           ['className', 'id', 'innerHTML', 'tagName', 'style',
-           'offsetParent', 'title', 'dir']);
+           'clientWidth', 'clientHeight',
+           'offsetLeft', 'offsetTop',
+           'offsetWidth', 'offsetHeight',
+           'offsetParent',
+           'scrollLeft', 'scrollTop',
+           'scrollWidth', 'scrollHeight',
+           'title', 'dir']);
     }
     classUtils.extend(TameElement, TameBackedNode);
     nodeClasses.Element = nodeClasses.HTMLElement =
@@ -2165,10 +2177,12 @@ var attachDocumentStub = (function () {
       }
     }, ___.func(function (propertyName, def) {
       var setter = def.set || propertyOnlyHasGetter;
-      ___.useGetHandler(TameElement.prototype, propertyName, def.get);
-      ___.useSetHandler(TameElement.prototype, propertyName, setter);
-      ___.useGetHandler(TamePseudoElement.prototype, propertyName, def.get);
-      ___.useSetHandler(TamePseudoElement.prototype, propertyName, setter);
+      var camel = propertyName.charAt(0).toUpperCase()
+          + propertyName.substring(1);
+      TameElement.prototype['get' + camel] = def.get;
+      TameElement.prototype['set' + camel] = setter;
+      TamePseudoElement.prototype['get' + camel] = def.get;
+      TamePseudoElement.prototype['set' + camel] = setter;
     }));
 
     // Register set handlers for onclick, onmouseover, etc.
@@ -3089,13 +3103,23 @@ var attachDocumentStub = (function () {
     TameHTMLDocument.prototype.getOwnerDocument = function () {
       return null;
     };
+
+    function asDisFunc(f) {
+      if (typeof f === 'object' && f !== null
+          && ___.canCallPub(f, 'call')) {
+        return f;
+      } else {
+        return ___.asFunc(f);
+      }
+    }
+
     // Called by the html-emitter when the virtual document has been loaded.
     TameHTMLDocument.prototype.signalLoaded___ = function () {
       var listeners = this.onLoadListeners___;
       this.onLoadListeners___ = [];
       for (var i = 0, n = listeners.length; i < n; ++i) {
         (function (listener) {
-          var listenerFn = ___.asFunc(listener);
+          var listenerFn = asDisFunc(listener);
           setTimeout(function () { listenerFn.call(cajita.USELESS); }, 0);
         })(listeners[i]);
       }
@@ -3160,7 +3184,7 @@ var attachDocumentStub = (function () {
     function TameStyle(style, editable) {
       this.style___ = style;
       this.editable___ = editable;
-      ___.grantCall(this, 'getPropertyValue');
+      ___.grantFunc(this, 'getPropertyValue');
     }
     classUtils.extend(TameStyle, Object);
     nodeClasses.Style = classUtils.inertClassCtor(TameStyle);
@@ -3439,8 +3463,7 @@ var attachDocumentStub = (function () {
       clearInterval: tameClearInterval,
       addEventListener: ___.frozenFunc(function (name, listener, useCapture) {
         if (name === 'load') {
-          ___.asFunc(listener);
-          tameDocument.onLoadListeners___.push(listener);
+          tameDocument.onLoadListeners___.push(asDisFunc(listener));
         }
       }),
       removeEventListener: ___.frozenFunc(function (name, listener, useCapture) {
