@@ -274,7 +274,6 @@ public class TemplateCompiler {
     Expression dynamicValue;
     switch (info.getType()) {
       case CLASSES:
-        if (!checkRestrictedNames(value, pos)) { return; }
         dynamicValue = null;
         break;
       case FRAME_TARGET:
