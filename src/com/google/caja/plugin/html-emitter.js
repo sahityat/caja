@@ -181,10 +181,15 @@ function HtmlEmitter(base, opt_tameDocument) {
       // Reattach up to and including limit ancestor.
       var nConsumed = 0;
       while (true) {
-        var toReattach = detached[nConsumed];
-        (detached[nConsumed + 1] /* the parent */).appendChild(toReattach);
+        var reattach = detached[nConsumed];
+        // in IE, some types of nodes can't be standalone, and detaching
+        // one will create new parentNodes for them.  so at this point,
+        // limitAnc might be an ancestor of the node on detached.
+        var reattAnc = reattach;
+        for (; reattAnc.parentNode; reattAnc = reattAnc.parentNode) {}
+        (detached[nConsumed + 1] /* the parent */).appendChild(reattach);
         nConsumed += 2;
-        if (toReattach === limitAnc) { break; }
+        if (reattAnc === limitAnc) { break; }
       }
       // Replace the reattached bits with the ones detached from limit.
       newDetached[1] = nConsumed;  // splice's second arg is the number removed

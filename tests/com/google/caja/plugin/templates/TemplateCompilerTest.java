@@ -245,7 +245,7 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertSafeHtml(
         htmlFragment(fromString("<img src='blank.gif' width='20'/>")),
         htmlFragment(fromString(
-            "<img alt='' src='/proxy?url=test%3A%2Fblank.gif"
+            "<img src='/proxy?url=test%3A%2Fblank.gif"
             + "&amp;mime-type=image%2F%2A' width='20'/>")),
         new Block());
   }
