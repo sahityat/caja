@@ -937,6 +937,11 @@ var attachDocumentStub = (function () {
           }
           return null;
         case html4.atype.CLASSES:
+          value = String(value);
+          if (value && !illegalSuffix.test(value)) {
+            return value;
+          }
+          return null;
         case html4.atype.GLOBAL_NAME:
         case html4.atype.LOCAL_NAME:
           value = String(value);
