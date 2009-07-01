@@ -1631,6 +1631,9 @@ jsunitRegister('testClassNames', function testClassNames() {
 
   assertTrue('has class', el.hasAttribute('class'));
 
+  el.className = '!@#$%*';
+  assertEquals('set class !@#$%*', '!@#$%*', el.className);
+
   pass('test-class-names');
 });
 
