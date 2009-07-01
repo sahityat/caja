@@ -298,6 +298,17 @@ public class TemplateCompilerTest extends CajaTestCase {
         );
   }
 
+  /**
+   * <textarea> without cols= was triggering an NPE due to buggy handling
+   * of mandatory attributes.
+   */
+  public void test1056Textarea() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString("<textarea></textarea>")),
+        htmlFragment(fromString("<textarea></textarea>")),
+        new Block());
+  }
+
   private void assertSafeHtml(
       DocumentFragment input, DocumentFragment htmlGolden, Block jsGolden)
       throws ParseException {
