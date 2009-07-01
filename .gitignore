@@ -1,0 +1,14 @@
+*.orig
+*.rej
+*.swp
+*~
+,*
+.#*
+.DS_Store
+.hg
+.svn
+/.classpath
+/.project
+\#*
+ant-*
+o.*
