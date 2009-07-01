@@ -298,6 +298,14 @@ public class TemplateCompilerTest extends CajaTestCase {
         );
   }
 
+  /** class= attributes are CDATA, non-alphanumerics should be allowed. */
+  public void test1057ClassNames() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='*%!@$'></div>")),
+        htmlFragment(fromString("<div class='*%!@$'></div>")),
+        new Block());
+  }
+
   private void assertSafeHtml(
       DocumentFragment input, DocumentFragment htmlGolden, Block jsGolden)
       throws ParseException {
