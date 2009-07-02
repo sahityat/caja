@@ -164,7 +164,7 @@ def readable_change(cl):
 
 
 %(message)s
-Issue %(issue)s  %(url)s
+%(url)s
 
 %(description)s
 
