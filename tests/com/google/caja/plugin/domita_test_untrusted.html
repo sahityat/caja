@@ -1634,6 +1634,9 @@ jsunitRegister('testClassNames', function testClassNames() {
   el.className = '!@#$%*';
   assertEquals('set class !@#$%*', '!@#$%*', el.className);
 
+  el.className = 'bad__';
+  assertNotEquals('set class bad__', 'bad__', el.className);
+
   pass('test-class-names');
 });
 

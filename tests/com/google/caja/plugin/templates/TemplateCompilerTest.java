@@ -301,8 +301,20 @@ public class TemplateCompilerTest extends CajaTestCase {
   /** class= attributes are CDATA, non-alphanumerics should be allowed. */
   public void test1057ClassNames() throws Exception {
     assertSafeHtml(
-        htmlFragment(fromString("<div class='*%!@$'></div>")),
-        htmlFragment(fromString("<div class='*%!@$'></div>")),
+        htmlFragment(fromString("<div class='*%!@$ ok'></div>")),
+        htmlFragment(fromString("<div class='*%!@$ ok'></div>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='ok bad__'></div>")),
+        htmlFragment(fromString("<div></div>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='bad__ ok'></div>")),
+        htmlFragment(fromString("<div></div>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<input id='bad1__' name='bad2__'>")),
+        htmlFragment(fromString("<input>")),
         new Block());
   }
 

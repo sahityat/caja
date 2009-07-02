@@ -281,20 +281,24 @@ public class TemplateCompiler {
     Expression dynamicValue;
     switch (info.getType()) {
       case CLASSES:
+        if (!checkLegalSuffix(value, pos)) { return; }
         dynamicValue = null;
         break;
       case FRAME_TARGET:
       case LOCAL_NAME:
+        if (!checkLegalSuffix(value, pos)) { return; }
         if (!checkRestrictedName(value, pos)) { return; }
         dynamicValue = null;
         break;
       case GLOBAL_NAME:
       case ID:
       case IDREF:
+        if (!checkLegalSuffix(value, pos)) { return; }
         if (!checkRestrictedName(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case IDREFS:
+        if (!checkLegalSuffix(value, pos)) { return; }
         if (!checkRestrictedNames(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
@@ -388,6 +392,16 @@ public class TemplateCompiler {
         throw new RuntimeException(info.getType().name());
     }
     scriptsPerNode.put(attr, dynamicValue);
+  }
+
+  private static final Pattern ILLEGAL_SUFFIX = Pattern.compile("__(?:\\s|$)");
+  /** True if value does not have a word ending with __ */
+  private boolean checkLegalSuffix(String value, FilePosition pos) {
+    if (!ILLEGAL_SUFFIX.matcher(value).find()) { return true; }
+    mq.addMessage(
+        IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, pos,
+        MessagePart.Factory.valueOf(value));
+    return false;
   }
 
   private static final Pattern IDENTIFIER_SEPARATOR = Pattern.compile("\\s+");
@@ -512,7 +526,7 @@ public class TemplateCompiler {
    * nodes; it is not processed or transformed in any way.
    */
   public Pair<Node, List<Block>> getSafeHtml(Document doc) {
-    // Inspect the document. 
+    // Inspect the document.
     inspect();
 
     // Emit safe HTML with JS which attaches dynamic attributes.
