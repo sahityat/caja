@@ -291,6 +291,10 @@ can test window.scrollBy with a positive x value with a visible effect.
   Test anchor computed styles don't leak history
 </p>
 
+<p class="testcontainer" id="test-focus-blur"
+ ><input id="test-focus-blur-1">
+</p>
+
 <p class="testcontainer" id="test-document-body-appendChild"
  >I should be the last element until something is appended to document.body</p>
 
@@ -2273,6 +2277,14 @@ jsunitRegister('testDocumentBodyAppendChild',
   assertEquals('body changed', body, document.body);
   assertEquals('parent is not body', lastest.parentNode, body);
   pass('test-document-body-appendChild');
+});
+
+jsunitRegister('testFocusBlur',
+               function testFocusBlur() {
+  var input = document.getElementById('test-focus-blur-1');
+  input.focus();
+  input.blur();
+  pass('test-focus-blur');
 });
 
 // Before onload events fire

@@ -2527,7 +2527,8 @@ var attachDocumentStub = (function () {
     };
     ___.ctor(TameInputElement, TameElement, 'TameInputElement');
     ___.all2(___.grantTypedGeneric, TameInputElement.prototype,
-             ['getValue', 'setValue', 'focus', 'getForm', 'getType', 'select']);
+             ['getValue', 'setValue', 'focus', 'blur',
+              'getForm', 'getType', 'select']);
 
 
     function TameImageElement(node, editable) {
