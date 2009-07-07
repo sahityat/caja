@@ -87,8 +87,8 @@ public class UriUtil {
     String query = m.group(4);
     String fragment = m.group(5);
 
-    // Path must start with / if the path is not empty or there is an authority
-    // or scheme.
+    // Path must start with / if the path is not empty and there is an
+    // authority.
     // Remove unnecessary .. components in path.
 
     StringBuilder sb = new StringBuilder(uri.length());
@@ -100,8 +100,8 @@ public class UriUtil {
       sb.append("//");
       normalizeAuthority(authority, sb);
     }
-    if (path.length() != 0 || sb.length() != 0) {
-      normalizePath(path, sb.length() != 0, sb);
+    if (path.length() != 0 || authority != null) {
+      normalizePath(path, authority != null, sb);
     }
     if (query != null) {
       sb.append('?');
