@@ -362,8 +362,7 @@ public class TemplateCompiler {
               .rewriteUri(ref, info.getMimeTypes());
           if (rewrittenUri == null) {
             mq.addMessage(
-                IhtmlMessageType.MALFORMED_URI,
-                FilePosition.UNKNOWN,
+                IhtmlMessageType.MALFORMED_URI, pos,
                 MessagePart.Factory.valueOf(uri.toString()));
             return;
           }
@@ -373,7 +372,6 @@ public class TemplateCompiler {
         } catch (URISyntaxException ex) {
           mq.addMessage(
               IhtmlMessageType.MALFORMED_URI, pos,
-              FilePosition.UNKNOWN,
               MessagePart.Factory.valueOf(value));
           return;
         }
@@ -506,7 +504,7 @@ public class TemplateCompiler {
    * nodes; it is not processed or transformed in any way.
    */
   public Pair<Node, List<Block>> getSafeHtml(Document doc) {
-    // Inspect the document. 
+    // Inspect the document.
     inspect();
 
     // Emit safe HTML with JS which attaches dynamic attributes.
