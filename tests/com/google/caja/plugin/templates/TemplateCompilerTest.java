@@ -298,18 +298,19 @@ public class TemplateCompilerTest extends CajaTestCase {
         );
   }
 
-  public void test1050Finish() throws Exception {
+  public void testBug1050Finish() throws Exception {
     // bug 1050, sometimes finish() is misplaced
+    // http://code.google.com/p/google-caja/issues/detail?id=1050
     assertSafeHtml(
         htmlFragment(fromString(
             ""
-            + "<div id=a></div>"
-            + "<div id=b></div>"
+            + "<div id=\"a\"></div>"
+            + "<div id=\"b\"></div>"
             + "<script>1</script>")),
         htmlFragment(fromString(
             ""
-            + "<div id='id_1___'></div>"
-            + "<div id='id_2___'></div>")),
+            + "<div id=\"id_1___\"></div>"
+            + "<div id=\"id_2___\"></div>")),
         js(fromString(
             ""
             + "{"
@@ -329,13 +330,12 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "  }"
             + "} catch (ex___) {"
             + "  ___.getNewModuleHandler().handleUncaughtException(ex___,"
-            + "    onerror, 'test1050Finish', '1');"
+            + "    onerror, 'testBug1050Finish', '1');"
             + "}"
             + "{"
             + "  emitter___.signalLoaded();"
             + "}"
-            ))
-    );
+            )));
   }
 
   private void assertSafeHtml(

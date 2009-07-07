@@ -242,7 +242,7 @@ final class SafeHtmlMaker {
       } else {
         NodeBone nb = (NodeBone) bone;
         boolean splitDom = i + 1 < n && bones.get(i + 1) instanceof ScriptBone
-          && i + 1 != firstDeferredScriptIndex;
+            && i + 1 != firstDeferredScriptIndex;
         if (splitDom) { start(); }
         if (nb.node instanceof Text) {
           fleshOutText((Text) nb.safeNode, splitDom);
