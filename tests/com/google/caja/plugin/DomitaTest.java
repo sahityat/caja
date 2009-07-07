@@ -83,7 +83,14 @@ public class DomitaTest extends CajaTestCase {
    */
   public void runPage(String pageName) {
     StartLocalServer();
+    try {
+      runPage_1(pageName);
+    } finally {
+      StopLocalServer();
+    }
+  }
 
+  void runPage_1(String pageName) {
     //System.setProperty("webdriver.firefox.bin", "/usr/bin/firefox");
     WebDriver driver = new FirefoxDriver();
 
@@ -114,8 +121,5 @@ public class DomitaTest extends CajaTestCase {
     String title = driver.getTitle();
     assertTrue("The title shows " + title.substring(title.lastIndexOf("-") + 1),
         title.endsWith("all tests passed"));
-
-    //driver.quit();
-    StopLocalServer();
   }
 }
