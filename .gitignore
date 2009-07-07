@@ -9,6 +9,7 @@
 .svn
 /.classpath
 /.project
+/.settings
 \#*
 ant-*
 o.*
