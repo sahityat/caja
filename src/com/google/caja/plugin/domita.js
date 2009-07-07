@@ -2967,7 +2967,8 @@ var attachDocumentStub = (function () {
           function () { return [tameHeadElement, tameBodyElement]; },
           function () { return tameDoc; },
           function () {
-            return ('<head>' + tameHeadElement.getInnerHTML + '<\/head><body>'
+            return ('<head>' + tameHeadElement.getInnerHTML()
+                    + '<\/head><body>'
                     + tameBodyElement.getInnerHTML() + '<\/body>');
           },
           tameBody,
