@@ -69,11 +69,11 @@ public class DomitaTest extends CajaTestCase {
   }
 
   public void testDomitaCajita() {
-    runPage("domita_test.html");
+    exercise("domita_test.html");
   }
 
   public void testDomitaValija() {
-    runPage("domita_test.html?valija=1");
+    exercise("domita_test.html?valija=1");
   }
 
   /**
@@ -81,16 +81,16 @@ public class DomitaTest extends CajaTestCase {
    * Repeat until all tests are passed, or the number of rounds exceeds the
    * threshold.
    */
-  public void runPage(String pageName) {
+  public void exercise(String pageName) {
     StartLocalServer();
     try {
-      runPage_1(pageName);
+      exerciseFirefox(pageName);
     } finally {
       StopLocalServer();
     }
   }
 
-  void runPage_1(String pageName) {
+  void exerciseFirefox(String pageName) {
     //System.setProperty("webdriver.firefox.bin", "/usr/bin/firefox");
     WebDriver driver = new FirefoxDriver();
 
