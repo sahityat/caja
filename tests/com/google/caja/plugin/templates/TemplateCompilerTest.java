@@ -298,31 +298,12 @@ public class TemplateCompilerTest extends CajaTestCase {
         );
   }
 
-  /** class= attributes are CDATA, non-alphanumerics should be allowed. */
-  public void test1057ClassNames() throws Exception {
-    assertSafeHtml(
-        htmlFragment(fromString("<div class='*%!@$ ok'></div>")),
-        htmlFragment(fromString("<div class='*%!@$ ok'></div>")),
-        new Block());
-    assertSafeHtml(
-        htmlFragment(fromString("<div class='ok bad__'></div>")),
-        htmlFragment(fromString("<div></div>")),
-        new Block());
-    assertSafeHtml(
-        htmlFragment(fromString("<div class='bad__ ok'></div>")),
-        htmlFragment(fromString("<div></div>")),
-        new Block());
-    assertSafeHtml(
-        htmlFragment(fromString("<input id='bad1__' name='bad2__'>")),
-        htmlFragment(fromString("<input>")),
-        new Block());
-  }
-
   /**
    * <textarea> without cols= was triggering an NPE due to buggy handling
    * of mandatory attributes.
+   * http://code.google.com/p/google-caja/issues/detail?id=1056
    */
-  public void test1056Textarea() throws Exception {
+  public void testBareTextarea() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<textarea></textarea>")),
         htmlFragment(fromString("<textarea></textarea>")),
