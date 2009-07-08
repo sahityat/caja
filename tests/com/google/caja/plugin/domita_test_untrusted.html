@@ -2315,6 +2315,7 @@ jsunitRegister('testFocusBlur',
   var input = document.getElementById('test-focus-blur-1');
   input.focus();
   input.blur();
+  // TODO: verify focus does change.  requires an event-driven tester.
   pass('test-focus-blur');
 });
 
