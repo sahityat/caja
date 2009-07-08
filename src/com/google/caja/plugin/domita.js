@@ -767,6 +767,10 @@ var attachDocumentStub = (function () {
       return attribs;
     };
 
+    var illegalSuffix = /__\s*$/;
+    var illegalSuffixes = /__(?:\s|$)/;
+    var idRefsTails = new RegExp(
+      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
 
     /** Sanitize HTML applying the appropriate transformations. */
     function sanitizeHtml(htmlText) {
@@ -829,16 +833,27 @@ var attachDocumentStub = (function () {
               return;
             }
             var value = attribs[i + 1];
+            // TODO(felix8a): consolidate the un-rewriteAttribute code.
             switch (atype) {
               case html4.atype.ID:
               case html4.atype.IDREF:
-              case html4.atype.IDREFS:
                 if (value.length <= idSuffix.length
                     || (idSuffix
                         !== value.substring(value.length - idSuffix.length))) {
                   continue;
                 }
                 value = value.substring(0, value.length - idSuffix.length);
+                break;
+              case html4.atype.IDREFS:
+                value = value.replace(idRefsTails,
+                    function(m0, m1, m2) {
+                      if (idSuffix.length <= m1.length
+                          && idSuffix
+                             === m1.substring(m1.length - idSuffix.length)) {
+                         m1 = m1.substring(0, m1.length - idSuffix.length);
+                      }
+                      return m1 + m2;
+                    });
                 break;
             }
             if (value !== null) {
@@ -853,7 +868,6 @@ var attachDocumentStub = (function () {
         cdata: function (text, out) { out.push(text); }
       });
 
-    var illegalSuffix = /__(?:\s|$)/;
     /**
      * Returns a normalized attribute value, or null if the attribute should
      * be omitted.
@@ -870,24 +884,30 @@ var attachDocumentStub = (function () {
      */
     function rewriteAttribute(tagName, attribName, type, value) {
       switch (type) {
+        case html4.atype.CLASSES:
+          value = String(value);
+          if (value && !illegalSuffixes.test(value)) {
+            return value;
+          }
+          return null;
+        case html4.atype.GLOBAL_NAME:
         case html4.atype.ID:
         case html4.atype.IDREF:
-        case html4.atype.IDREFS:
           value = String(value);
           if (value && !illegalSuffix.test(value) && isXmlName(value)) {
             return value + idSuffix;
           }
           return null;
-        case html4.atype.CLASSES:
+        case html4.atype.IDREFS:
           value = String(value);
-          if (value && !illegalSuffix.test(value)) {
-            return value;
+          if (value && !illegalSuffixes.test(value) && isXmlNmTokens(value)) {
+            return value.replace(idRefsTails,
+                function(m0, m1, m2) { return m1 + idSuffix + m2; });
           }
           return null;
-        case html4.atype.GLOBAL_NAME:
         case html4.atype.LOCAL_NAME:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isXmlNmTokens(value)) {
+          if (value && !illegalSuffix.test(value) && isXmlName(value)) {
             return value;
           }
           return null;
@@ -1992,7 +2012,6 @@ var attachDocumentStub = (function () {
       switch (atype) {
         case html4.atype.ID:
         case html4.atype.IDREF:
-        case html4.atype.IDREFS:
           if (!value) { return null; }
           var n = idSuffix.length;
           var len = value.length;
@@ -2001,6 +2020,19 @@ var attachDocumentStub = (function () {
             return value.substring(0, end);
           }
           return null;
+        case html4.atype.IDREFS:
+          if (!value) { return null; }
+          value = value.replace(idRefsTails,
+              function(m0, m1, m2) {
+                if (idSuffix.length <= m1.length
+                    && idSuffix
+                       === m1.substring(m1.length - idSuffix.length)) {
+                  return m1.substring(0, m1.length - idSuffix.length) + m2;
+                } else {
+                  return m2;
+                }
+              });
+          return value;
         default:
           if ('' === value) {
             // IE creates attribute nodes for any attribute in the HTML schema

@@ -329,7 +329,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testBug1050Finish() throws Exception {
+  public void testHtmlEmitterFinish() throws Exception {
     // bug 1050, sometimes finish() is misplaced
     // http://code.google.com/p/google-caja/issues/detail?id=1050
     assertSafeHtml(
@@ -361,12 +361,70 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "  }"
             + "} catch (ex___) {"
             + "  ___.getNewModuleHandler().handleUncaughtException(ex___,"
-            + "    onerror, 'testBug1050Finish', '1');"
+            + "    onerror, 'testHtmlEmitterFinish', '1');"
             + "}"
             + "{"
             + "  emitter___.signalLoaded();"
             + "}"
             )));
+  }
+
+  /** http://code.google.com/p/google-caja/issues/detail?id=1057 */
+  public void testClassNames() throws Exception {
+    // TODO(felix8a): refactor assertSafeHtml to test warning messages
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='!@#$%* ok__1'></div>")),
+        htmlFragment(fromString("<div class='!@#$%* ok__1'></div>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='ok bad__'></div>")),
+        htmlFragment(fromString("<div></div>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='ok bad__ '></div>")),
+        htmlFragment(fromString("<div></div>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='bad__ ok'></div>")),
+        htmlFragment(fromString("<div></div>")),
+        new Block());
+  }
+
+  public void testIllegalSuffixes() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString("<input id='bad1__' name='bad2__'>")),
+        htmlFragment(fromString("<input>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<input id='bad1__ ' name='bad2__ '>")),
+        htmlFragment(fromString("<input>")),
+        new Block());
+    // TODO(felix8a): can't assertSafeHtml this, it's ERROR not WARNING
+    // assertSafeHtml(
+    //     htmlFragment(fromString("<input id='b__ c' name='d__ e'>")),
+    //     htmlFragment(fromString("<input>")),
+    //     new Block());
+  }
+
+  public void testIdRefsRewriting() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString(
+            "<table><tr><td headers='a b'></td></tr></table>")),
+        htmlFragment(fromString(
+            "<table><tr><td id='id_1___'></td></tr></table>")),
+        js(fromString(
+            ""
+            + "{"
+            + "  var el___;"
+            + "  var emitter___ = IMPORTS___.htmlEmitter___;"
+            + "  el___ = emitter___.byId('id_1___');"
+            + "  emitter___.setAttr(el___, 'headers',"
+            + "    'a-' + IMPORTS___.getIdClass___()"
+            + "    + (' b-' + IMPORTS___.getIdClass___()));"
+            + "  el___.removeAttribute('id');"
+            + "  el___ = emitter___.finish();"
+            + "  emitter___.signalLoaded();"
+            + "}")));
   }
 
   private void assertSafeHtml(
