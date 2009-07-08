@@ -341,8 +341,9 @@ public class TemplateCompilerTest extends CajaTestCase {
   /**
    * <textarea> without cols= was triggering an NPE due to buggy handling
    * of mandatory attributes.
+   * http://code.google.com/p/google-caja/issues/detail?id=1056
    */
-  public void test1056Textarea() throws Exception {
+  public void testBareTextarea() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<textarea></textarea>")),
         htmlFragment(fromString("<textarea></textarea>")),

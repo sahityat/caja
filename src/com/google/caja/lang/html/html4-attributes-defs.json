@@ -5,7 +5,9 @@
       "Derived by taking http://www.w3.org/TR/html401/index/attributes.html",
       "and copying&pasting it into a text file which gave me a 7 column file:",
       "    Name   Related Elements   Type   Default   Depr.   DTD   Comment",
-      "and running html4-attributes.pl."
+      "and running html4-attributes.pl.",
+      "Note, there are some deviations from html401's declaration of optional",
+      "because optional=false is used to force mandatory attributes."
       ],
 
   "types": [
@@ -553,9 +555,9 @@
       { "key": "PARAM::TYPE", "description": "content type for value when valuetype=ref",
         "optional": true },
       { "key": "SCRIPT::TYPE", "description": "content type of script language",
-        "optional": true },
+        "optional": false, "default": "text/javascript" },
       { "key": "STYLE::TYPE", "description": "content type of style language",
-        "optional": true },
+        "optional": false, "default": "text/css" },
       { "key": "INPUT::TYPE", "description": "what kind of widget is needed",
         "pattern": "TEXT|PASSWORD|CHECKBOX|RADIO|SUBMIT|RESET|FILE|HIDDEN|IMAGE|BUTTON", "default": "TEXT", "optional": true },
       { "key": "LI::TYPE", "description": "list item style",
