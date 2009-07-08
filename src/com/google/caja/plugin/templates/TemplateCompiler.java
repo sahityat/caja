@@ -68,6 +68,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.w3c.dom.Attr;
@@ -274,24 +275,31 @@ public class TemplateCompiler {
     Expression dynamicValue;
     switch (info.getType()) {
       case CLASSES:
-        if (!checkLegalSuffix(value, pos)) { return; }
+        // className is arbitrary CDATA, it's not restricted by spec,
+        // and some js libs depend on putting rich data in className.
+        // http://www.w3.org/TR/html401/struct/global.html#adef-class
+        // We still ban classNames with words ending '__'.
+        // We could try deleting just the bad words, but it seems unlikely
+        // that narrow sanitization will allow broken code to still work,
+        // and we can revisit this if there are enough cases in the wild.
+        if (!checkIllegalSuffixes(value, pos)) { return; }
         dynamicValue = null;
         break;
       case FRAME_TARGET:
       case LOCAL_NAME:
-        if (!checkLegalSuffix(value, pos)) { return; }
+        if (!checkIllegalSuffix(value, pos)) { return; }
         if (!checkRestrictedName(value, pos)) { return; }
         dynamicValue = null;
         break;
       case GLOBAL_NAME:
       case ID:
       case IDREF:
-        if (!checkLegalSuffix(value, pos)) { return; }
+        if (!checkIllegalSuffix(value, pos)) { return; }
         if (!checkRestrictedName(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case IDREFS:
-        if (!checkLegalSuffix(value, pos)) { return; }
+        if (!checkIllegalSuffixes(value, pos)) { return; }
         if (!checkRestrictedNames(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
@@ -387,12 +395,32 @@ public class TemplateCompiler {
     scriptsPerNode.put(attr, dynamicValue);
   }
 
-  private static final Pattern ILLEGAL_SUFFIX = Pattern.compile("__(?:\\s|$)");
-  /** True if value does not have a word ending with __ */
-  private boolean checkLegalSuffix(String value, FilePosition pos) {
+  private static final Pattern ILLEGAL_SUFFIX =
+      Pattern.compile("__\\s*$");
+  private static final Pattern ILLEGAL_SUFFIXES =
+      Pattern.compile("(\\S*__)(\\s|$)");
+
+  /** True iff value does not end with __ */
+  private boolean checkIllegalSuffix(String value, FilePosition pos) {
     if (!ILLEGAL_SUFFIX.matcher(value).find()) { return true; }
     mq.addMessage(
         IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, pos,
+        MessagePart.Factory.valueOf(value));
+    return false;
+  }
+
+  /** True iff value does not have a word ending with __ */
+  private boolean checkIllegalSuffixes(String value, FilePosition pos) {
+    Matcher m = ILLEGAL_SUFFIXES.matcher(value);
+    if (!m.find()) { return true; }
+    // Narrow to the location of the bad word
+    FilePosition badPos = FilePosition.instance(
+        pos.source(), pos.startLineNo(),
+        pos.startCharInFile() + m.start(1),
+        pos.startCharInLine() + m.start(1),
+        m.end(1) - m.start(1));
+    mq.addMessage(
+        IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, badPos,
         MessagePart.Factory.valueOf(value));
     return false;
   }
