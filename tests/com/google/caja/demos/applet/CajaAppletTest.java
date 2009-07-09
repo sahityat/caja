@@ -17,6 +17,7 @@ package com.google.caja.demos.applet;
 import com.google.caja.reporting.TestBuildInfo;
 import com.google.caja.util.CajaTestCase;
 
+import java.awt.HeadlessException;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -27,12 +28,7 @@ import java.net.URL;
  */
 public class CajaAppletTest extends CajaTestCase {
 
-  /**
-   * Try to return a new CajaApplet, or null.
-   * Applets can't be instantiated when headless.
-   */
-  private CajaApplet makeApplet() {
-    if (Boolean.getBoolean("test.headless")) return null;
+  private CajaApplet makeApplet() throws HeadlessException {
     return new CajaApplet() {
         { setBuildInfo(new TestBuildInfo()); }
         @Override
@@ -48,8 +44,8 @@ public class CajaAppletTest extends CajaTestCase {
   }
 
   public void testCajoleInValija() throws Exception {
+    if (checkHeadless()) return;
     CajaApplet applet = makeApplet();
-    if (applet == null) return;
     // TODO(mikesamuel): move these goldens into files
     String sp = "                 ";
     assertEquals(
@@ -104,8 +100,8 @@ public class CajaAppletTest extends CajaTestCase {
   }
 
   public void testCajoleInCajita() throws Exception {
+    if (checkHeadless()) return;
     CajaApplet applet = makeApplet();
-    if (applet == null) return;
     String sp = "                 ";
     assertEquals(
       "['\\x3cspan id=\\\"id_1___\\\"\\x3eHowdy\\x3c/span\\x3eThere" +

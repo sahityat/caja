@@ -27,7 +27,6 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxDriver;
 
-import java.awt.GraphicsEnvironment;
 import java.util.List;
 
 /**
@@ -83,7 +82,7 @@ public class DomitaTest extends CajaTestCase {
    * threshold.
    */
   public void exercise(String pageName) {
-    if (Boolean.getBoolean("test.headless")) return;
+    if (checkHeadless()) return;
     StartLocalServer();
     try {
       exerciseFirefox(pageName);
