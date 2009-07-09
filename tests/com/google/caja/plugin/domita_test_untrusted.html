@@ -929,6 +929,7 @@ jsunitRegister('testInnerHtml',
   // Escapes trailing title, href, and > after </em>.
   assertEquals(
       '<a class="link" href="http://foo.com?a&#61;b&amp;c&#61;d"'
+      + ' target="_parent"'
       + ' title="&lt;click me!&gt;">'
       + 'Test <em id="em">Not</em>&gt; run yet.</a>',
       canonInnerHtml(container.innerHTML));
@@ -942,7 +943,7 @@ jsunitRegister('testInnerHtml',
   assertEquals(
       '<a class="green blue" href="http://gadget-proxy/'
       + '?url=http%3A%2F%2Fbar.com%2Fbaz&amp;mimeType=*%2F*" id="foo-xyz___"'
-      + ' target="_blank" title="A link">A &amp; B &amp; C&lt;</a>',
+      + ' title="A link">A &amp; B &amp; C&lt;</a>',
       canonInnerHtml(directAccess.getInnerHTML(container)));
 
   pass('test-inner-html');
@@ -951,16 +952,16 @@ jsunitRegister('testInnerHtml',
 jsunitRegister('testForms',
                function testForms() {
   var form = document.createElement('FORM');
-  assertEquals('return false', directAccess.getAttribute(form, 'onsubmit'));
+  assertEquals(null, directAccess.getAttribute(form, 'onsubmit'));
 
   var container = document.getElementById('test-forms');
   container.innerHTML = '<form onsubmit="foo()">'
       + '<input type="submit" value="Submit"></form>';
 
   assertEquals('<form onsubmit="'
-               + 'try { plugin_dispatchEvent___'
+               + 'plugin_dispatchEvent___'
                + '(this, event, 0, &quot;foo&quot;);'
-               + ' } finally { return false; }">'
+               + '">'
                + '<input type="submit" value="Submit"></form>',
                canonInnerHtml(directAccess.getInnerHTML(container)));
 
@@ -1240,9 +1241,9 @@ jsunitRegister('testTargetAttr',
   var testDiv = document.getElementById('test-target-attr');
   testDiv.innerHTML = '<a target="foo">text1</a><a>text2</a>';
   var node = testDiv.firstChild;
-  assertEquals('_blank', directAccess.getAttribute(node, 'target'));
+  assertEquals(null, directAccess.getAttribute(node, 'target'));
   node = node.nextSibling;
-  assertEquals('_blank', directAccess.getAttribute(node, 'target'));
+  assertEquals(null, directAccess.getAttribute(node, 'target'));
   pass('test-target-attr');
 });
 

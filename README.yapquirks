@@ -1,0 +1,13 @@
+YAP temporary quirks that shouldn't propagate upstream.
+
+* YAP currently uses <base> in the sandbox as part of
+  the URL policy, and to accommodate that we need to
+  neuter some of Caja's restrictions:
+
+    * Caja prevents <form> from navigating the page,
+      by preventing the default form submit action.
+      We want to allow the default form submit action.
+
+    * Caja rewrites the @target attribute to disallow
+      the default target.  We want to allow the default
+      target.
