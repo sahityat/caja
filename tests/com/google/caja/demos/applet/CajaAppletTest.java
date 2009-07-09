@@ -26,20 +26,30 @@ import java.net.URL;
  * @author Jasvir Nagra <jasvir@gmail.com>
  */
 public class CajaAppletTest extends CajaTestCase {
-  CajaApplet applet = new CajaApplet() {
-    { setBuildInfo(new TestBuildInfo()); }
-    @Override
-    public URL getDocumentBase() {
-      try {
-        return new URL("http://example.com");
-      } catch (MalformedURLException e) {
-        assert(false);
-      }
-      return null;
-    }
-  };
+
+  /**
+   * Try to return a new CajaApplet, or null.
+   * Applets can't be instantiated when headless.
+   */
+  private CajaApplet makeApplet() {
+    if (Boolean.getBoolean("test.headless")) return null;
+    return new CajaApplet() {
+        { setBuildInfo(new TestBuildInfo()); }
+        @Override
+        public URL getDocumentBase() {
+          try {
+            return new URL("http://example.com");
+          } catch (MalformedURLException e) {
+            assert(false);
+          }
+          return null;
+        }
+    };
+  }
 
   public void testCajoleInValija() throws Exception {
+    CajaApplet applet = makeApplet();
+    if (applet == null) return;
     // TODO(mikesamuel): move these goldens into files
     String sp = "                 ";
     assertEquals(
@@ -94,6 +104,8 @@ public class CajaAppletTest extends CajaTestCase {
   }
 
   public void testCajoleInCajita() throws Exception {
+    CajaApplet applet = makeApplet();
+    if (applet == null) return;
     String sp = "                 ";
     assertEquals(
       "['\\x3cspan id=\\\"id_1___\\\"\\x3eHowdy\\x3c/span\\x3eThere" +
