@@ -747,26 +747,6 @@ var attachDocumentStub = (function () {
         optPseudoWindowLocation = {};
     }
     var elementPolicies = {};
-    elementPolicies.form = function (attribs) {
-      // Forms must have a gated onsubmit handler or they must have an
-      // external target.
-      var sawHandler = false;
-      for (var i = 0, n = attribs.length; i < n; i += 2) {
-        if (attribs[i] === 'onsubmit') {
-          sawHandler = true;
-        }
-      }
-      if (!sawHandler) {
-        attribs.push('onsubmit', 'return false');
-      }
-      return attribs;
-    };
-    elementPolicies.a = elementPolicies.area = function (attribs) {
-      // Anchor tags must have a target.
-      attribs.push('target', '_blank');
-      return attribs;
-    };
-
 
     /** Sanitize HTML applying the appropriate transformations. */
     function sanitizeHtml(htmlText) {
@@ -817,7 +797,6 @@ var attachDocumentStub = (function () {
           out.push('<', tagName);
           for (var i = 0; i < attribs.length; i += 2) {
             var attribName = attribs[i];
-            if (attribName === 'target') { continue; }
             var attribKey;
             var atype;
             if ((attribKey = tagName + ':' + attribName,
@@ -901,9 +880,6 @@ var attachDocumentStub = (function () {
           value = (doesReturn ? 'return ' : '') + 'plugin_dispatchEvent___('
               + 'this, event, ' + pluginId + ', "'
               + fnName + '");';
-          if (attribName === 'onsubmit') {
-            value = 'try { ' + value + ' } finally { return false; }';
-          }
           return value;
         case html4.atype.URI:
           value = String(value);
@@ -932,7 +908,10 @@ var attachDocumentStub = (function () {
           }
           return css.join(' ; ');
         case html4.atype.FRAME_TARGET:
-          // Frames are ambient, so disallow reference.
+          value = String(value);
+          if (value === '_top' || value === '_blank') {
+            return value;
+          }
           return null;
         default:
           return String(value);
