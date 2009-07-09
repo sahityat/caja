@@ -886,7 +886,7 @@ var attachDocumentStub = (function () {
       switch (type) {
         case html4.atype.CLASSES:
           value = String(value);
-          if (value && !illegalSuffixes.test(value)) {
+          if (!illegalSuffixes.test(value)) {
             return value;
           }
           return null;

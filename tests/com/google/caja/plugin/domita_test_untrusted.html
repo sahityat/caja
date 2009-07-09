@@ -1670,6 +1670,9 @@ jsunitRegister('testClassNames', function testClassNames() {
   el.className = 'bad__ ok';
   assertEquals('set class "bad__ ok"', 'simple', el.className);
 
+  el.className = '';
+  assertEquals('set class ""', '', el.className);
+
   pass('test-class-names');
 });
 
