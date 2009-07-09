@@ -298,18 +298,6 @@ public class TemplateCompilerTest extends CajaTestCase {
         );
   }
 
-  /**
-   * <textarea> without cols= was triggering an NPE due to buggy handling
-   * of mandatory attributes.
-   * http://code.google.com/p/google-caja/issues/detail?id=1056
-   */
-  public void testBareTextarea() throws Exception {
-    assertSafeHtml(
-        htmlFragment(fromString("<textarea></textarea>")),
-        htmlFragment(fromString("<textarea></textarea>")),
-        new Block());
-  }
-
   public void testHtmlEmitterFinish() throws Exception {
     // bug 1050, sometimes finish() is misplaced
     // http://code.google.com/p/google-caja/issues/detail?id=1050
@@ -348,6 +336,18 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "  emitter___.signalLoaded();"
             + "}"
             )));
+  }
+
+  /**
+   * <textarea> without cols= was triggering an NPE due to buggy handling
+   * of mandatory attributes.
+   * http://code.google.com/p/google-caja/issues/detail?id=1056
+   */
+  public void testBareTextarea() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString("<textarea></textarea>")),
+        htmlFragment(fromString("<textarea></textarea>")),
+        new Block());
   }
 
   /** http://code.google.com/p/google-caja/issues/detail?id=1057 */
