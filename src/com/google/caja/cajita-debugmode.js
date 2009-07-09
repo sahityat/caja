@@ -312,6 +312,9 @@
     var newDebugSymbols = arguments;
     cajita.log('using debug symbols');
     if (!cajita.isJSONContainer(this)) { cajita.fail('called on bad ___'); }
+    if (this.debugSymbols_ !== void 0) {
+      cajita.log('___ reused with different debug symbols');
+    }
     // Unpack the debugging symbols.
 
     // Per DebuggingSymbolsStage:
