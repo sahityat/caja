@@ -39,6 +39,7 @@ import com.google.caja.util.Pair;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.net.URI;
 
 import java.util.ArrayList;
 import java.util.Collections;
