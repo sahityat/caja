@@ -228,6 +228,13 @@ public class TemplateCompiler {
           } else {
             safeValue = a.getSafeValue();
           }
+          if (safeValue == null) {
+            mq.addMessage(IhtmlMessageType.MISSING_ATTRIB,
+                Nodes.getFilePositionFor(el),
+                MessagePart.Factory.valueOf(elName.toString()),
+                MessagePart.Factory.valueOf(attrNameStr));
+            continue;
+          }
           attr.setNodeValue(safeValue);
           el.setAttributeNode(attr);
         }
@@ -356,8 +363,7 @@ public class TemplateCompiler {
       case URI:
         try {
           URI uri = new URI(value);
-          ExternalReference ref = new ExternalReference(
-              pos.source().getUri().resolve(uri), pos);
+          ExternalReference ref = new ExternalReference(uri, pos);
           String rewrittenUri = meta.getPluginEnvironment()
               .rewriteUri(ref, info.getMimeTypes());
           if (rewrittenUri == null) {

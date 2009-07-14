@@ -39,6 +39,7 @@ import com.google.caja.util.Pair;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.net.URI;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,7 +63,9 @@ public class TemplateCompilerTest extends CajaTestCase {
       }
 
       public String rewriteUri(ExternalReference ref, String mimeType) {
-        return "/proxy?url=" + encodeUrl(ref.getUri().toString())
+        URI resolvedUri = ref.getReferencePosition().source().getUri()
+            .resolve(ref.getUri());
+        return "/proxy?url=" + encodeUrl(resolvedUri.toString())
             + "&mime-type=" + encodeUrl(mimeType);
       }
 
@@ -245,7 +248,7 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertSafeHtml(
         htmlFragment(fromString("<img src='blank.gif' width='20'/>")),
         htmlFragment(fromString(
-            "<img alt='' src='/proxy?url=test%3A%2Fblank.gif"
+            "<img src='/proxy?url=test%3A%2Fblank.gif"
             + "&amp;mime-type=image%2F%2A' width='20'/>")),
         new Block());
   }
@@ -296,6 +299,100 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "      ex___, onerror, 'testDeferredScripts', '1');"
             + "}"))
         );
+  }
+
+  private class Holder<T> { T value; }
+
+  public void testUriAttributeResolution() throws Exception {
+    // Ensure that the TemplateCompiler calls its PluginEnvironment with the
+    // correct information when it encounters a URI-valued HTML attribute.
+
+    final Holder<ExternalReference> savedRef = new Holder<ExternalReference>();
+
+    meta = new PluginMeta(new PluginEnvironment() {
+      public CharProducer loadExternalResource(
+          ExternalReference ref, String mimeType) {
+        throw new RuntimeException("NOT IMPLEMENTED");
+      }
+
+      public String rewriteUri(ExternalReference ref, String mimeType) {
+        savedRef.value = ref;
+        return "rewritten";
+      }
+    });
+
+    DocumentFragment htmlInput =
+        htmlFragment(fromString("<a href=\"x.html\"></a>"));
+    assertSafeHtml(
+        htmlInput,
+        htmlFragment(fromString(
+            "<a href=\"rewritten\" target=\"_blank\"></a>")),
+        new Block());
+
+    // The ExternalReference reference position should contain the URI of the
+    // source in which the HREF was seen.
+    assertEquals(
+        Nodes.getFilePositionFor(htmlInput).source(),
+        savedRef.value.getReferencePosition().source());
+
+    // The ExternalReference target URI should be the URI that was embedded in
+    // the original source. The TemplateCompiler should not attempt to resolve
+    // it; that is the job of the PluginEnvironment.
+    assertEquals(
+        new URI("x.html"),
+        savedRef.value.getUri());
+  }
+
+  public void testFinishCalledAtEnd() throws Exception {
+    // bug 1050, sometimes finish() is misplaced
+    // http://code.google.com/p/google-caja/issues/detail?id=1050
+    assertSafeHtml(
+        htmlFragment(fromString(
+            ""
+            + "<div id=\"a\"></div>"
+            + "<div id=\"b\"></div>"
+            + "<script>1</script>")),
+        htmlFragment(fromString(
+            ""
+            + "<div id=\"id_1___\"></div>"
+            + "<div id=\"id_2___\"></div>")),
+        js(fromString(
+            ""
+            + "{"
+            + "  var el___;"
+            + "  var emitter___ = IMPORTS___.htmlEmitter___;"
+            + "  el___ = emitter___.byId('id_1___');"
+            + "  emitter___.setAttr(el___, 'id',"
+            + "    'a-' + IMPORTS___.getIdClass___());"
+            + "  el___ = emitter___.byId('id_2___');"
+            + "  emitter___.setAttr(el___, 'id',"
+            + "    'b-' + IMPORTS___.getIdClass___());"
+            + "  el___ = emitter___.finish();"
+            + "}"
+            + "try {"
+            + "  {"
+            + "    1;"
+            + "  }"
+            + "} catch (ex___) {"
+            + "  ___.getNewModuleHandler().handleUncaughtException(ex___,"
+            + "    onerror, 'testFinishCalledAtEnd', '1');"
+            + "}"
+            + "{"
+            + "  emitter___.signalLoaded();"
+            + "}"
+            )));
+  }
+
+  /**
+   * <textarea> without cols= was triggering an NPE due to buggy handling
+   * of mandatory attributes.
+   * http://code.google.com/p/google-caja/issues/detail?id=1056
+   */
+  public void testBareTextarea() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString("<textarea></textarea>")),
+        htmlFragment(fromString("<textarea></textarea>")),
+        new Block());
   }
 
   private void assertSafeHtml(
