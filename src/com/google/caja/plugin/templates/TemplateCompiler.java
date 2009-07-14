@@ -372,7 +372,6 @@ public class TemplateCompiler {
                 MessagePart.Factory.valueOf(uri.toString()));
             return;
           }
-          rewrittenUri = UriUtil.normalizeUri(rewrittenUri);
           dynamicValue = StringLiteral.valueOf(
               ref.getReferencePosition(), rewrittenUri);
         } catch (URISyntaxException ex) {

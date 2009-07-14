@@ -77,8 +77,4 @@ public class UriUtilTest extends TestCase {
         "S" + enc + "://A" + enc + "/P" + enc + "?Q" + enc + "#F" + enc,
         UriUtil.normalizeUri("S\uff61://A\uff61/P\uff61?Q\uff61#F\uff61"));
   }
-
-  public void testMailto() throws Exception {
-    assertEquals("mailto:a%40b", UriUtil.normalizeUri("mailto:a@b"));
-  }
 }
