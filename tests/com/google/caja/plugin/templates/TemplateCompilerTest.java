@@ -288,16 +288,19 @@ public class TemplateCompilerTest extends CajaTestCase {
 
   public void testMailto() throws Exception {
     assertSafeHtml(
-        htmlFragment(fromString("<a href='mailto:x@y'>z</a>")),
-        htmlFragment(fromString("<a href='mailto:x@y' target='_blank'>z</a>")),
+        htmlFragment(fromString(
+            "<a href='mailto:x@y' target='_blank'>z</a>")),
+        htmlFragment(fromString(
+            "<a href='mailto:x@y' target='_blank'>z</a>")),
         new Block());
   }
 
   public void testComplexUrl() throws Exception {
     assertSafeHtml(
-        htmlFragment(fromString("<a href='http://b/c;_d=e?f=g&i=%26'>z</a>")),
-        htmlFragment(fromString("<a href='http://b/c;_d=e?f=g&i=%26'"
-            + " target='_blank'>z</a>")),
+        htmlFragment(fromString(
+            "<a href='http://b/c;_d=e?f=g&i=%26' target='_blank'>z</a>")),
+        htmlFragment(fromString(
+            "<a href='http://b/c;_d=e?f=g&i=%26' target='_blank'>z</a>")),
         new Block());
   }
 
