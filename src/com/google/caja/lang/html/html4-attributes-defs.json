@@ -36,7 +36,7 @@
       { "key": "TEXTAREA::ACCESSKEY", "description": "accessibility key character",
         "pattern": ".", "optional": true },
       { "key": "FORM::ACTION", "description": "server-side form handler",
-        "mimeTypes": "application/x-www-form-urlencoded", "type": "URI", "optional": false },
+        "mimeTypes": "application/x-www-form-urlencoded", "type": "URI", "optional": true },
       { "key": "CAPTION::ALIGN", "description": "relative to table",
         "optional": true },
       { "key": "APPLET::ALIGN", "description": "vertical or horizontal alignment",
