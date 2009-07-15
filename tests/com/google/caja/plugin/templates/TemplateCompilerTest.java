@@ -144,7 +144,7 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertSafeHtml(
         htmlFragment(fromString("<form></form>")),
         htmlFragment(fromString(
-            "<form action='test:///testFormRewritten'"
+            "<form"
             + " target='_blank'></form>")),
         new Block());
   }
@@ -187,7 +187,7 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertSafeHtml(
         htmlFragment(fromString("<form name='hi'></form>")),
         htmlFragment(fromString(
-            "<form action='test:///testFormName'"
+            "<form"
             + " name='hi-suffix___' target=_blank></form>")),
         new Block());
   }
@@ -198,7 +198,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         htmlFragment(fromString(
             "<form onsubmit='alert(&quot;hi&quot;); return true;'></form>")),
         htmlFragment(fromString(
-            "<form action='test:///testFormOnSubmitTrue'"
+            "<form"
             + " id=id_2___ target='_blank'></form>")),
         js(fromString(
             ""
@@ -225,7 +225,7 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertSafeHtml(
         htmlFragment(fromString("<form onsubmit=''></form>")),
         htmlFragment(fromString(
-            "<form action='test:///testFormOnSubmitEmpty'"
+            "<form"
             + " target='_blank'></form>")),
         new Block());
   }
