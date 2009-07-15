@@ -25,6 +25,40 @@ import junit.framework.AssertionFailedError;
 public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
 
   /**
+   * Tests that "in" works as expected
+   * @throws Exception
+   */
+  public void testIn() throws Exception {
+    assertConsistent(
+        "('length' in {}) && " +
+        "fail('readable property mistaken for existing property');");
+    assertConsistent(
+        "('length' in []) || " +
+        "fail('arrays should have a length');");
+    
+    assertConsistent(
+        "('x' in { x: 1 }) || " +
+        "fail('failed to find existing readable property');");
+    assertConsistent(
+        "('y' in { x: 1 }) && " +
+        "fail('found nonexisting property');");
+    assertConsistent(
+        "var flag = true;" +
+        "try { 'length' in '123' }" +
+        "catch (e) { flag = false; }" +
+        "if (flag) { fail ('should throw TypeError'); }" +
+        "true;");
+  }
+
+  /**
+   * Tests that the length property whitelisting works on non-objects
+   * @throws Exception
+   */
+  public void testStringLength() throws Exception {
+    assertConsistent("('123').length;");
+  }
+
+  /**
    * Tests that eval is uncallable.
    */
   public void testEval() throws Exception {
@@ -281,14 +315,14 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
         "cajita.forOwnKeys({x:3}, function(k, v) {a.push(k, v);});" +
         "assertEquals(a.toString(), 'x,3');",
         "var a = [];\n" +
-        "cajita.forOwnKeys({x:3}, ___.frozenFunc(function(k, v) {a.push(k, v);}));" +
+        "cajita.forOwnKeys({x:3}, ___.markFuncFreeze(function(k, v) {a.push(k, v);}));" +
         "assertEquals(a.toString(), 'x,3');");
     rewriteAndExecute("",
         "var a = [];\n" +
         "cajita.forAllKeys({x:3}, function(k, v) {a.push(k, v);});" +
         "assertEquals(a.toString(), 'x,3');",
         "var a = [];\n" +
-        "cajita.forAllKeys({x:3}, ___.frozenFunc(function(k, v) {a.push(k, v);}));" +
+        "cajita.forAllKeys({x:3}, ___.markFuncFreeze(function(k, v) {a.push(k, v);}));" +
         "assertEquals(a.toString(), 'x,3');");
     assertConsistent("(function(){}).bind.call(function(a, b) {return a + b;}, {}, 3)(4);");
   }

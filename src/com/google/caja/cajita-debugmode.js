@@ -39,10 +39,8 @@
  * handler or a cross-frame event, can corrupt the stack.  We try to detect
  * these on popping a stack frame, and mark the stack invalid.
  * <p>
- * The {@code ___.startCallerStack} can be invoked by container event/timeout
- * handling to initialize a stack.  This will throw out an invalid stack, and
- * start a new stack.  If the stack is not empty and not marked invalid, it will
- * be marked invalid.
+ * {@code ___.startCallerStack} can be invoked by event handlers to set the
+ * stack to a valid state.  If the stack is already valid, it's left alone.
  *
  * @author mikesamuel@gmail.com
  */
@@ -62,6 +60,7 @@
     for (var i = 0, n = members.length; i < n; i += 2) {
       var k = members[i], v = members[i + 1];
       if (!(k in obj)) { throw new Error('can\'t override ' + k + ' in ' + v); }
+      if (obj[k] === v) continue;
       if (extraOptionalParams !== null
           && obj[k].length + extraOptionalParams !== v.length) {
         throw new Error('overriding ' + k + ' with a different signature');
@@ -70,31 +69,19 @@
     }
   }
 
-  // Disable fast-tracking so that we receive notification on every operation
-  // that modifies the stack.
-  function noop(obj, name) {}
-  function requireNotFrozen(obj, name) {
-    if (orig.isFrozen(obj)) {
-      cajita.fail("Can't set .", name, ' on frozen (', obj, ')');
-    }
-  }
-
-
   // Define the stack, and accessors
   var stack;
-  var stackInvalid;
+  var stackInvalid = true;
 
   /**
-   * Resets the caller stack to an empty state.
-   * Called by event handler wrapper to bring the stack into a known good state
-   * and similarly by {@code setTimeout}/{@code setInterval} wrappers
-   * to associate the call stack at the time the timeout or interval was
-   * registered for execution.
-   * @param opt_precedingCallStack a sealed call stack.
+   * Start the caller stack if it hasn't been started already.  Called by
+   * event handler, {@code setTimeout}, and {@code setInterval} wrappers
    */
-  function startCallerStack(opt_precedingCallStack) {
-    stack = [];
-    stackInvalid = false;
+  function startCallerStack() {
+    if (!stack || stackInvalid) {
+      stack = [];
+      stackInvalid = false;
+    }
   }
 
   var stackSealer = cajita.makeSealerUnsealerPair();
@@ -118,10 +105,10 @@
   }
 
   function popFrame(stackFrame) {
-    // Check that pushed item is at the top, and if so pop, invalidate
-    // otherwise.
+    // If we're not popping what we expect, something weird has screwed up
+    // our push/pop symmetry, so we mark the stack invalid.
     var top = stack.length - 1;
-    if (stackFrame === stack[top]) {
+    if (top >= 0 && stackFrame === stack[top]) {
       stack.length = top;
     } else {
       stackInvalid = true;
@@ -326,7 +313,7 @@
     cajita.log('using debug symbols');
     if (!cajita.isJSONContainer(this)) { cajita.fail('called on bad ___'); }
     if (this.debugSymbols_ !== void 0) {
-      cajita.fail('___ reused with different debug symbols');
+      cajita.log('___ reused with different debug symbols');
     }
     // Unpack the debugging symbols.
 
@@ -346,17 +333,6 @@
       }
     }
     this.debugSymbols_ = debugSymbols;
-
-    // Disable fast-tracking
-    override_members(
-        this,
-        [
-         'grantRead', noop,
-         'grantEnumOnly', noop,
-         'grantCall', noop,
-         'grantSet', requireNotFrozen,
-         'grantDelete', requireNotFrozen
-        ], 0);
 
     // Maintain stack through calls, and attach a stack when an operation fails.
     override_members(
@@ -394,9 +370,9 @@
       ]);
 
   // Include the top stack frame in log messages.
-  override_members(cajita, ['log', ___.frozenFunc(log)], 0);
+  override_members(cajita, ['log', ___.markFuncFreeze(log)], 0);
   // Dump stack traces during loading to the console.
-  override_members(___, ['loadModule', ___.frozenFunc(loadModule)], 0);
+  override_members(___, ['loadModule', ___.markFuncFreeze(loadModule)], 0);
 
   startCallerStack();
 })();
