@@ -1750,6 +1750,8 @@ jsunitRegister('testIllegalSuffixes', function testIllegalSuffixes() {
   el.innerHTML = '<input id="b__ c" name="d__ e">';
   assertFalse('id="b__ c"', !!el.firstChild.getAttribute('id'));
   assertFalse('name="d__ e"', !!el.firstChild.getAttribute('name'));
+
+  pass('test-illegal-suffixes');
 });
 
 jsunitRegister('testIdRefsRewriting', function testIdRefsRewriting() {
@@ -1761,6 +1763,7 @@ jsunitRegister('testIdRefsRewriting', function testIdRefsRewriting() {
   assertEquals('rewritten ids', 'aa bb', tirr1.getAttribute('headers'));
   var html = el.innerHTML;
   assertTrue('innerHTML', new RegExp('"aa bb"').test(html));
+  pass('test-id-refs-rewriting');
 });
 
 jsunitRegister('testCloneNodeStructure', function testCloneNodeStructure() {
