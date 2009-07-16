@@ -103,11 +103,9 @@ public class DomitaTest extends CajaTestCase {
     for (; clickRounds < clickRoundLimit; clickRounds++) {
       List<WebElement> clickingList =
          driver.findElements(By.xpath("//*[contains(@class,'clickme')]/*"));
-
       if (clickingList.size() == 0) {
         break;
       }
-
       for (WebElement e : clickingList) {
         e.click();
       }
