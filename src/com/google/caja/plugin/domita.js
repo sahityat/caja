@@ -3470,7 +3470,7 @@ var attachDocumentStub = (function () {
               classUtils.ensureValidCallback(listener);
               tameDocument.onLoadListeners___.push(listener);
             } else {
-              # TODO: need a testcase for this
+              // TODO: need a testcase for this
               tameDocument.addEventListener(name, listener, useCapture);
             }
           }),
