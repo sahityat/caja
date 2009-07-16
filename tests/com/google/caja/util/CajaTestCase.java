@@ -346,13 +346,13 @@ public abstract class CajaTestCase extends TestCase {
    */
   protected boolean checkHeadless() {
     if (Boolean.getBoolean("test.headless")) {
-      assertTrue("test.headless=true in non-headless environment",
+      assertTrue("test.headless==true in non-headless environment",
           GraphicsEnvironment.isHeadless());
       System.err.println(getName() + " skipped in headless testing");
       return true;
     }
 
-    assertFalse("test.headless!=true in headless environment",
+    assertFalse("test.headless==false in headless environment",
         GraphicsEnvironment.isHeadless());
     return false;
   }
