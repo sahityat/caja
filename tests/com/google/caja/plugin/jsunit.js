@@ -128,6 +128,7 @@ function jsunitRun(opt_testNames) {
     } catch (e) {
       firstFailure = firstFailure || e;
       jsunit.failCount++;
+      jsunit.updateStatus();
       console.log('FAIL: ' + testName);
       if (typeof console !== 'undefined') {
         if (e.isJsUnitException) {

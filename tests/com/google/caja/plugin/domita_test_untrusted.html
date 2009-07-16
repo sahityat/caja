@@ -72,7 +72,7 @@
 <div class="testcontainer" id="test-attrs-declared-in-markup"
     ><form title="test title"></form>
   <b>Test attributes in markup</b>
--</div>
+</div>
 
 <div class="testcontainer" id="test-attrs-not-in-markup"
     ><form></form>
@@ -81,7 +81,7 @@
 
 <div class="testcontainer" id="test-attrs-nonstandard-permitted"
     ><form></form>
-  <b>Testt attributes nonstandard permitted</b>
+  <b>Test attributes nonstandard permitted</b>
 </div>
 
 <p class="testcontainer" id="test-property-attribute-interaction">
@@ -2436,15 +2436,15 @@ jsunitRegister('testOnFocus',
                function testOnFocus() {
   var input = document.getElementById('test-onfocus-input');
   input.addEventListener('focus',
-    function() { pass('test-onfocus'); },
-    false);
+      function() { pass('test-onfocus'); },
+      false);
 });
 jsunitRegister('testOnBlur',
                function testOnBlur() {
   var input = document.getElementById('test-onfocus-input');
   input.addEventListener('blur',
-    function() { pass('test-onblur'); },
-    false);
+      function() { pass('test-onblur'); },
+      false);
 });
 */
 
@@ -2453,8 +2453,8 @@ jsunitRegister('testOnReset',
                function testOnReset() {
   var form = document.getElementById('test-onreset-form');
   form.addEventListener('reset',
-    function() { pass('test-onreset'); },
-    false);
+      function() { pass('test-onreset'); },
+      false);
 });
 
 
