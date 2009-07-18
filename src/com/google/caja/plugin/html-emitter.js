@@ -203,21 +203,20 @@ function HtmlEmitter(base, opt_tameDocument) {
     return limit;
   }
   /**
-   * Removes a wrapper from a textNode
-   * When a text node immediately precedes a script block, the limit will be
-   * a text node.  Text nodes can't be addressed by ID, so the TemplateCompiler
-   * wraps them in a <span> which must be removed to be semantics preserving.
+   * Removes a TextNode wrapper.
+   * When the last node before a script block is a TextNode, the
+   * TemplateCompiler labels that TextNode by wrapping it in a span, and
+   * adds a call to unwrap() to tell us when to remove the span.
    */
   function unwrap(wrapper) {
-    // Text nodes must have exactly one child, so it must be first on the
-    // detached list, since children are earlier than siblings by DFS order.
-    var text = detached[0];
-    // If this is not true, the TemplateCompiler must be generating unwrap calls
-    // out of order.
-    // An untrusted script block should not be able to nuke the wrapper before
-    // it's removed so there should be a parentNode.
-    wrapper.parentNode.replaceChild(text, wrapper);
-    detached.splice(0, 2);
+    // At this point, the wrapper's child has been removed and placed at
+    // the front of the detached nodes list.  There should never be more
+    // than one, but sometimes there's zero, because some browsers will
+    // ignore the text if it's just spaces.
+    if (detached[1] === wrapper) {
+      wrapper.parentNode.replaceChild(detached[0], wrapper);
+      detached.splice(0, 2);
+    }
   }
   /**
    * Reattach any remaining detached bits, free resources, and fire a document
