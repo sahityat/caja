@@ -21,6 +21,10 @@
  * mechanisms to reliably find elements using dynamically generated unique IDs
  * in the face of DOM modifications by untrusted scripts.
  *
+ * TODO: Need in-browser tests.  This attach/reattach strategy runs into
+ * some browser quirks, especially IE.  See
+ * http://code.google.com/p/google-caja/issues/detail?id=1060
+ *
  * @author mikesamuel@gmail.com
  */
 function HtmlEmitter(base, opt_tameDocument) {
@@ -209,10 +213,10 @@ function HtmlEmitter(base, opt_tameDocument) {
    * adds a call to unwrap() to tell us when to remove the span.
    */
   function unwrap(wrapper) {
-    // At this point, the wrapper's child has been removed and placed at
-    // the front of the detached nodes list.  There should never be more
-    // than one, but sometimes there's zero, because some browsers will
-    // ignore the text if it's just spaces.
+    // At this point, the wrapper's TextNode child has been removed and
+    // placed at the front of the detached nodes list.  There should never
+    // be more than one, but sometimes there's zero, because some browsers
+    // (such as IE) do not create a TextNode when it's only whitespace.
     if (detached[1] === wrapper) {
       wrapper.parentNode.replaceChild(detached[0], wrapper);
       detached.splice(0, 2);
