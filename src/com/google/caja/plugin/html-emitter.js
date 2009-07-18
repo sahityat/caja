@@ -247,13 +247,14 @@ function HtmlEmitter(base, opt_tameDocument) {
 
   /** Set an attribute on an element */
   function setAttr(el, attrName, value) {
+    bridal.setAttribute(el, attrName, value);
+
+    // onevent attributes are extra special
     var tagAttr = el.tagName.toLowerCase() + ':' + attrName;
     if (html4.ATTRIBS[tagAttr] === html4.atype.SCRIPT
         || html4.ATTRIBS['*:' + attrName] === html4.atype.SCRIPT) {
-      // IE<8 requires us to set event handlers this way
+      // IE<8 requires us to set onevent attributes this way.
       el[attrName] = new Function('event', value);
-    } else {
-      bridal.setAttribute(el, attrName, value);
     }
   }
 
