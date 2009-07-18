@@ -21,8 +21,7 @@
  * mechanisms to reliably find elements using dynamically generated unique IDs
  * in the face of DOM modifications by untrusted scripts.
  *
- * TODO: Need in-browser tests.  This attach/reattach strategy runs into
- * some browser quirks, especially IE.  See
+ * TODO: automated browser tests.  detach/reattach hits some browser quirks.
  * http://code.google.com/p/google-caja/issues/detail?id=1060
  *
  * @author mikesamuel@gmail.com
