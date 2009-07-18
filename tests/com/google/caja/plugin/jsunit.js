@@ -39,15 +39,19 @@ jsunit.pass = function(id) {
 };
 
 jsunit.updateStatus = function() {
-  var status = ' -';
+  var parts = [];
+  var missing = jsunit.testCount - jsunit.failCount - jsunit.passCount;
+  if (missing !== 0) {
+    parts.push(missing + '/' + jsunit.testCount + ' missing');
+  }
   if (jsunit.failCount) {
-    status += ' ' + jsunit.failCount + '/' + jsunit.testCount + ' fail';
+    parts.push(jsunit.failCount + '/' + jsunit.testCount + ' fail');
   }
-  status += ' ' + jsunit.passCount + '/' + jsunit.testCount + ' pass';
+  parts.push(jsunit.passCount + '/' + jsunit.testCount + ' pass');
   if (!jsunit.failCount && jsunit.passCount == jsunit.testCount) {
-    status += ' - all tests passed';
+    parts.push('all tests passed');
   }
-  document.title = jsunit.originalTitle + status;
+  document.title = jsunit.originalTitle + ' :: ' + parts.join(' : ');
 };
 
 /** Register a test that can be run later. */
@@ -65,9 +69,6 @@ function arrayContains(anArray, anElement) {
 
 /** Run tests. */
 function jsunitRun(opt_testNames) {
-  document.title += ' (' + (navigator.appName
-                            ? navigator.appName + ' ' + navigator.appVersion
-                            : navigator.userAgent) + ')';
   jsunit.originalTitle = document.title;
 
   var testNames = [];
