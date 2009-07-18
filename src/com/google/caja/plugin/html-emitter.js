@@ -21,6 +21,9 @@
  * mechanisms to reliably find elements using dynamically generated unique IDs
  * in the face of DOM modifications by untrusted scripts.
  *
+ * TODO: automated browser tests.  detach/reattach hits some browser quirks.
+ * http://code.google.com/p/google-caja/issues/detail?id=1060
+ *
  * @author mikesamuel@gmail.com
  */
 function HtmlEmitter(base, opt_tameDocument) {
@@ -209,10 +212,10 @@ function HtmlEmitter(base, opt_tameDocument) {
    * adds a call to unwrap() to tell us when to remove the span.
    */
   function unwrap(wrapper) {
-    // At this point, the wrapper's child has been removed and placed at
-    // the front of the detached nodes list.  There should never be more
-    // than one, but sometimes there's zero, because some browsers will
-    // ignore the text if it's just spaces.
+    // At this point, the wrapper's TextNode child has been removed and
+    // placed at the front of the detached nodes list.  There should never
+    // be more than one, but sometimes there's zero, because some browsers
+    // (such as IE) do not create a TextNode when it's only whitespace.
     if (detached[1] === wrapper) {
       wrapper.parentNode.replaceChild(detached[0], wrapper);
       detached.splice(0, 2);
@@ -241,10 +244,23 @@ function HtmlEmitter(base, opt_tameDocument) {
     return this;
   }
 
+  /** Set an attribute on an element */
+  function setAttr(el, attrName, value) {
+    bridal.setAttribute(el, attrName, value);
+
+    // onevent attributes are extra special
+    var tagAttr = el.tagName.toLowerCase() + ':' + attrName;
+    if (html4.ATTRIBS[tagAttr] === html4.atype.SCRIPT
+        || html4.ATTRIBS['*:' + attrName] === html4.atype.SCRIPT) {
+      // IE<8 requires us to set onevent attributes this way.
+      el[attrName] = new Function('event', value);
+    }
+  }
+
   this.byId = byId;
   this.attach = attach;
   this.unwrap = unwrap;
   this.finish = finish;
   this.signalLoaded = signalLoaded;
-  this.setAttr = bridal.setAttribute;
+  this.setAttr = setAttr;
 }
