@@ -245,10 +245,22 @@ function HtmlEmitter(base, opt_tameDocument) {
     return this;
   }
 
+  /** Set an attribute on an element */
+  function setAttr(el, attrName, value) {
+    var tagAttr = el.tagName.toLowerCase() + ':' + attrName;
+    if (html4.ATTRIBS[tagAttr] === html4.atype.SCRIPT
+        || html4.ATTRIBS['*:' + attrName] === html4.atype.SCRIPT) {
+      // IE<8 requires us to set event handlers this way
+      el[attrName] = new Function('event', value);
+    } else {
+      bridal.setAttribute(el, attrName, value);
+    }
+  }
+
   this.byId = byId;
   this.attach = attach;
   this.unwrap = unwrap;
   this.finish = finish;
   this.signalLoaded = signalLoaded;
-  this.setAttr = bridal.setAttribute;
+  this.setAttr = setAttr;
 }
