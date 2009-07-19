@@ -216,7 +216,7 @@ public class DefaultValijaRewriterTest extends CommonJsRewriterTestCase {
     assertConsistent("var a = { x: 1 }; delete a.x; typeof a.x;");
   }
 
-  public void testIn() throws Exception {
+  public void testIn2() throws Exception {
     assertConsistent(
         "(function () {" +
         "  var a = { x: 1 };\n" +
