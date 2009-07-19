@@ -295,6 +295,8 @@
       // An explicit channel between whitelisted_script.js and cajoled tests.
       testImports.externalScript = { loaded: false };
 
+      // TODO: async requirements are not counted in the test status.
+
       // Define an asynchronous test mechanism so that we can test things like
       // XHR, dynamic script loading, setTimeout, etc.
       // This allows test code to register conditions that must be true.
