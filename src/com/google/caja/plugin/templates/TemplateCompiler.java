@@ -379,18 +379,15 @@ public class TemplateCompiler {
               .rewriteUri(ref, info.getMimeTypes());
           if (rewrittenUri == null) {
             mq.addMessage(
-                IhtmlMessageType.MALFORMED_URI,
-                FilePosition.UNKNOWN,
+                IhtmlMessageType.MALFORMED_URI, pos,
                 MessagePart.Factory.valueOf(uri.toString()));
             return;
           }
-          rewrittenUri = UriUtil.normalizeUri(rewrittenUri);
           dynamicValue = StringLiteral.valueOf(
               ref.getReferencePosition(), rewrittenUri);
         } catch (URISyntaxException ex) {
           mq.addMessage(
               IhtmlMessageType.MALFORMED_URI, pos,
-              FilePosition.UNKNOWN,
               MessagePart.Factory.valueOf(value));
           return;
         }
