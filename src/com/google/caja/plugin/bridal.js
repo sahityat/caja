@@ -134,9 +134,9 @@ var bridal = (function() {
 
       var attrs = node.attributes;
       for (var i = 0, attr; (attr = attrs[i]); ++i) {
-        if (attr.specified && !endsWith__.test(attr.name)) {
-          clone.setAttribute(attr.nodeName, attr.nodeValue);
-        }
+        if (!attr.specified) continue;
+        if (endsWith__.test(attr.name)) continue;
+        clone.setAttribute(attr.nodeName, attr.nodeValue);
       }
     } else {
       clone = node.cloneNode(false);
