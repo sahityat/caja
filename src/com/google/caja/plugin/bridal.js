@@ -134,10 +134,9 @@ var bridal = (function() {
 
       var attrs = node.attributes;
       for (var i = 0, attr; (attr = attrs[i]); ++i) {
-        // TODO: swapping the order of these tests causes ie7 to crash?
-        if (endsWith__.test(attr.name)) continue;
-        if (!attr.specified) continue;
-        clone.setAttribute(attr.nodeName, attr.nodeValue);
+        if (attr.specified && !endsWith__.test(attr.name)) {
+          clone.setAttribute(attr.nodeName, attr.nodeValue);
+        }
       }
     } else {
       clone = node.cloneNode(false);
