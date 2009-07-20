@@ -94,12 +94,12 @@ if (Date.prototype.toJSON === void 0) {
 
 /**
  * Provide Array.slice like Firefox.  You can slice anything, and the
- * result is always an array.
+ * result is always an array.  This behaves differently from Firefox in the
+ * exotic case of an array-like x with typeof x !== 'object'.
  */
 if (Array.slice === void 0) {
   Array.slice = function (self, start, end) {
-    self = Object(self);
-    if ('length' in self) {
+    if (typeof self === 'object') {
       return Array.prototype.slice.call(self, start || 0, end || self.length);
     } else {
       return [];
