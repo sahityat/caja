@@ -26,7 +26,6 @@ import com.google.caja.lexer.JsTokenQueue;
 import com.google.caja.lexer.Keyword;
 import com.google.caja.lexer.ParseException;
 import com.google.caja.lexer.TokenQueue;
-import com.google.caja.lexer.escaping.UriUtil;
 import com.google.caja.parser.AncestorChain;
 import com.google.caja.parser.ParseTreeNode;
 import com.google.caja.parser.ParseTreeNodeContainer;
@@ -279,6 +278,14 @@ public class TemplateCompiler {
     FilePosition pos = Nodes.getFilePositionForValue(attr);
     String value = attr.getValue();
 
+    // There are two cases for name handling.
+    // 1. For names that can be forced to a local scope, we pass them
+    //    through unchanged, except we deny the '__' suffix as reserved for
+    //    use by the container.
+    // 2. For names that have global scope, we rewrite them with a local
+    //    suffix.  We could allow these names to end with '__', but I think
+    //    the inconsistency is more confusing than helpful
+
     Expression dynamicValue;
     switch (info.getType()) {
       case CLASSES:
@@ -306,7 +313,7 @@ public class TemplateCompiler {
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case IDREFS:
-        if (!checkIllegalSuffixes(value, pos)) { return; }
+        if (!checkIllegalSuffix(value, pos)) { return; }
         if (!checkRestrictedNames(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
