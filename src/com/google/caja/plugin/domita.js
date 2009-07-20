@@ -767,17 +767,13 @@ var attachDocumentStub = (function () {
       return attribs;
     };
 
-    var illegalSuffix = /__\s*$/;
-    var illegalSuffixes = /__(?:\s|$)/;
-    var idRefsTails = new RegExp(
-      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
-
     /** Sanitize HTML applying the appropriate transformations. */
     function sanitizeHtml(htmlText) {
       var out = [];
       htmlSanitizer(htmlText, out);
       return out.join('');
     }
+
     var htmlSanitizer = html.makeHtmlSanitizer(
         function sanitizeAttributes(tagName, attribs) {
           for (var i = 0; i < attribs.length; i += 2) {
@@ -806,6 +802,19 @@ var attachDocumentStub = (function () {
           }
           return attribs;
         });
+
+    /**
+     * If str ends with suffix, return the part of str before suffix.
+     * Otherwise return ''.
+     */
+    function unsuffix(str, suffix) {
+      var n = str.length - suffix.length;
+      if (0 < n && str.substring(n) === suffix) {
+        return str.substring(0, n);
+      } else {
+        return '';
+      }
+    }
 
     /**
      * Undoes some of the changes made by sanitizeHtml, e.g. stripping ID
@@ -837,22 +846,14 @@ var attachDocumentStub = (function () {
             switch (atype) {
               case html4.atype.ID:
               case html4.atype.IDREF:
-                if (value.length <= idSuffix.length
-                    || (idSuffix
-                        !== value.substring(value.length - idSuffix.length))) {
-                  continue;
-                }
-                value = value.substring(0, value.length - idSuffix.length);
+                value = unsuffix(value, idSuffix);
+                if (value === '') continue;
                 break;
               case html4.atype.IDREFS:
                 value = value.replace(idRefsTails,
-                    function(m0, m1, m2) {
-                      if (idSuffix.length <= m1.length
-                          && idSuffix
-                             === m1.substring(m1.length - idSuffix.length)) {
-                         m1 = m1.substring(0, m1.length - idSuffix.length);
-                      }
-                      return m1 + m2;
+                    function(_, id, spaces) {
+                      id = unsuffix(id, idSuffix);
+                      return id + spaces;
                     });
                 break;
             }
@@ -867,6 +868,11 @@ var attachDocumentStub = (function () {
         rcdata: function (text, out) { out.push(text); },
         cdata: function (text, out) { out.push(text); }
       });
+
+    var illegalSuffix = /__\s*$/;
+    var illegalSuffixes = /__(?:\s|$)/;
+    var idRefsTails = new RegExp(
+      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
 
     /**
      * Returns a normalized attribute value, or null if the attribute should
@@ -902,7 +908,7 @@ var attachDocumentStub = (function () {
           value = String(value);
           if (value && !illegalSuffixes.test(value) && isXmlNmTokens(value)) {
             return value.replace(idRefsTails,
-                function(m0, m1, m2) { return m1 + idSuffix + m2; });
+                function(_, id, spaces) { return id + idSuffix + spaces; });
           }
           return null;
         case html4.atype.LOCAL_NAME:
@@ -2021,6 +2027,7 @@ var attachDocumentStub = (function () {
       var value = bridal.getAttribute(this.node___, attribName);
       if ('string' !== typeof value) { return value; }
       switch (atype) {
+        case html4.atype.GLOBAL_NAME:
         case html4.atype.ID:
         case html4.atype.IDREF:
           if (!value) { return null; }
@@ -2034,14 +2041,9 @@ var attachDocumentStub = (function () {
         case html4.atype.IDREFS:
           if (!value) { return null; }
           value = value.replace(idRefsTails,
-              function(m0, m1, m2) {
-                if (idSuffix.length <= m1.length
-                    && idSuffix
-                       === m1.substring(m1.length - idSuffix.length)) {
-                  return m1.substring(0, m1.length - idSuffix.length) + m2;
-                } else {
-                  return m2;
-                }
+              function(_, id, spaces) {
+                id = unsuffix(id, idSuffix);
+                return id + spaces;
               });
           return value;
         default:
