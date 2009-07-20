@@ -92,10 +92,14 @@ if (Date.prototype.toJSON === void 0) {
   Date.prototype.toJSON = Date.prototype.toISOString;
 }
 
-/** In anticipation of ES4, and because it's useful. */
+/**
+ * Provide Array.slice like Firefox.  You can slice anything, and the
+ * result is always an array.
+ */
 if (Array.slice === void 0) {
   Array.slice = function (self, start, end) {
-    if (typeof self === 'object') {
+    self = Object(self);
+    if ('length' in self) {
       return Array.prototype.slice.call(self, start || 0, end || self.length);
     } else {
       return [];
