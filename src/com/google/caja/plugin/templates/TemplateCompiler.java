@@ -313,7 +313,7 @@ public class TemplateCompiler {
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case IDREFS:
-        if (!checkIllegalSuffix(value, pos)) { return; }
+        if (!checkIllegalSuffixes(value, pos)) { return; }
         if (!checkRestrictedNames(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
@@ -437,7 +437,7 @@ public class TemplateCompiler {
 
   private static final Pattern IDENTIFIER_SEPARATOR = Pattern.compile("\\s+");
   private static final Pattern ALLOWED_NAME = Pattern.compile(
-      "^[\\p{Alpha}_:][\\p{Alnum}.\\-_:]*$");
+      "^[\\p{Alnum}$_:.\\-\\[\\]]+$");
   /** True if value is a valid XML names outside the restricted namespace. */
   private boolean checkRestrictedName(String value, FilePosition pos) {
     assert "".equals(value) || !IDENTIFIER_SEPARATOR.matcher(value).find();

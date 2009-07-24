@@ -409,18 +409,15 @@ var attachDocumentStub = (function () {
 
   var XML_SPACE = '\t\n\r ';
 
-  var XML_NAME_PATTERN = new RegExp(
-      '^[' + unicode.LETTER + '_:][' + unicode.LETTER + unicode.DIGIT + '.\\-_:'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER + ']*$');
+  var VALID_ID_CHAR =
+      unicode.LETTER + unicode.DIGIT + '$_:.\\-\\[\\]'
+      + unicode.COMBINING_CHAR + unicode.EXTENDER;
 
-  var XML_NMTOKEN_PATTERN = new RegExp(
-      '^[' + unicode.LETTER + unicode.DIGIT + '.\\-_:'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER + ']+$');
+  var VALID_ID_PATTERN = new RegExp(
+      '^[' + VALID_ID_CHAR + ']+$');
 
-  var XML_NMTOKENS_PATTERN = new RegExp(
-      '^(?:[' + XML_SPACE + ']*[' + unicode.LETTER + unicode.DIGIT + '.\\-_:'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER + ']+)+[' + XML_SPACE + ']*$'
-      );
+  var VALID_IDLIST_PATTERN = new RegExp(
+      '^[' + XML_SPACE + VALID_ID_CHAR + ']*$');
 
   var JS_SPACE = '\t\n\r ';
   // An identifier that does not end with __.
@@ -436,20 +433,12 @@ var attachDocumentStub = (function () {
       // And it can end with a semicolon.
       + '[' + JS_SPACE + ']*(?:;?[' + JS_SPACE + ']*)$');
 
-  /**
-   * Coerces the string to a valid XML Name.
-   * @see http://www.w3.org/TR/2000/REC-xml-20001006#NT-Name
-   */
-  function isXmlName(s) {
-    return XML_NAME_PATTERN.test(s);
+  function isValidId(s) {
+    return VALID_ID_PATTERN.test(s);
   }
 
-  /**
-   * Coerces the string to valid XML Nmtokens
-   * @see http://www.w3.org/TR/2000/REC-xml-20001006#NT-Nmtokens
-   */
-  function isXmlNmTokens(s) {
-    return XML_NMTOKENS_PATTERN.test(s);
+  function isValidIdList(s) {
+    return VALID_IDLIST_PATTERN.test(s);
   }
 
   // Trim whitespace from the beginning and end of a CSS string.
@@ -880,20 +869,20 @@ var attachDocumentStub = (function () {
         case html4.atype.ID:
         case html4.atype.IDREF:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isXmlName(value)) {
+          if (value && !illegalSuffix.test(value) && isValidId(value)) {
             return value + idSuffix;
           }
           return null;
         case html4.atype.IDREFS:
           value = String(value);
-          if (value && !illegalSuffixes.test(value) && isXmlNmTokens(value)) {
+          if (value && !illegalSuffixes.test(value) && isValidIdList(value)) {
             return value.replace(idRefsTails,
                 function(_, id, spaces) { return id + idSuffix + spaces; });
           }
           return null;
         case html4.atype.LOCAL_NAME:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isXmlName(value)) {
+          if (value && !illegalSuffix.test(value) && isValidId(value)) {
             return value;
           }
           return null;
@@ -1134,7 +1123,7 @@ var attachDocumentStub = (function () {
       // Filter out classnames in the restricted namespace.
       for (var i = classes ? classes.length : 0; --i >= 0;) {
         var classi = classes[i];
-        if (illegalSuffix.test(classi) || !isXmlNmTokens(classi)) {
+        if (illegalSuffix.test(classi)) {
           classes[i] = classes[classes.length - 1];
           --classes.length;
         }
