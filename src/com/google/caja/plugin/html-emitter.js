@@ -43,7 +43,8 @@ function HtmlEmitter(base, opt_tameDocument) {
     idMap = {};
     var descs = base.getElementsByTagName('*');
     for (var i = 0, desc; (desc = descs[i]); ++i) {
-      if (desc.id) { idMap[desc.id] = desc; }
+      var id = desc.getAttribute('id');
+      if (id) { idMap[id] = desc; }
     }
   }
   /**
