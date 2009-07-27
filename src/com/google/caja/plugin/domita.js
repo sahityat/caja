@@ -1025,6 +1025,9 @@ var attachDocumentStub = (function () {
         case 8:  // Comment
           tamed = new TameCommentNode(node, editable);
           break;
+        case 11: // Document Fragment
+          tamed = new TameBackedNode(node, editable, editable);
+          break;
         default:
           tamed = new TameOpaqueNode(node, editable);
           break;
@@ -2996,11 +2999,11 @@ var attachDocumentStub = (function () {
               name, listener, useCapture);
         };
     TameHTMLDocument.prototype.createComment = function (text) {
-      return new TameCommentNode(this.doc___.createComment(" "), true);
+      return defaultTameNode(this.doc___.createComment(" "), true);
     };
     TameHTMLDocument.prototype.createDocumentFragment = function () {
-      return new TameBackedNode(this.doc___.createDocumentFragment(),
-                                this.editable___);
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      return defaultTameNode(this.doc___.createDocumentFragment(), true);
     };
     TameHTMLDocument.prototype.createElement = function (tagName) {
       if (!this.editable___) { throw new Error(NOT_EDITABLE); }
@@ -3785,12 +3788,11 @@ function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   if (___.startCallerStack) { ___.startCallerStack(); }
   imports.isProcessingEvent___ = true;
   try {
+    var node = imports.tameNode___(thisNode, true);
     return ___.callPub(
-        handler, 'call',
-        [___.USELESS,
-         imports.tameEvent___(event),
-         imports.tameNode___(thisNode, true)
-         ]);
+        handler, 
+        'call',
+        [ node, imports.tameEvent___(event), node ]);
   } catch (ex) {
     if (ex && ex.cajitaStack___ && 'undefined' !== (typeof console)) {
       console.error('Event dispatch %s: %s',
