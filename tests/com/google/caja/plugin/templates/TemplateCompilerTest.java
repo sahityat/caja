@@ -43,6 +43,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import junit.framework.AssertionFailedError;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
@@ -459,11 +461,31 @@ public class TemplateCompilerTest extends CajaTestCase {
         htmlFragment(fromString("<input id='bad1__ ' name='bad2__ '>")),
         htmlFragment(fromString("<input>")),
         new Block());
-    // TODO(felix8a): can't assertSafeHtml this, it's ERROR not WARNING
-    // assertSafeHtml(
-    //     htmlFragment(fromString("<input id='b__ c' name='d__ e'>")),
-    //     htmlFragment(fromString("<input>")),
-    //     new Block());
+
+    // TODO: expected ERROR messages for assertSafeHtml.
+    Error error;
+
+    error = null;
+    try {
+      assertSafeHtml(
+         htmlFragment(fromString("<input id='b__ c'>")),
+         htmlFragment(fromString("<input>")),
+         new Block());
+    } catch (AssertionFailedError e) {
+      error = e;
+    }
+    assertNotNull(error);
+
+    error = null;
+    try {
+      assertSafeHtml(
+         htmlFragment(fromString("<input name='d__ e'>")),
+         htmlFragment(fromString("<input>")),
+         new Block());
+    } catch (AssertionFailedError e) {
+      error = e;
+    }
+    assertNotNull(error);
   }
 
   public void testIdRefsRewriting() throws Exception {

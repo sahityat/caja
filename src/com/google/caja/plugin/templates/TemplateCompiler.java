@@ -67,7 +67,6 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.w3c.dom.Attr;
@@ -296,25 +295,22 @@ public class TemplateCompiler {
         // We could try deleting just the bad words, but it seems unlikely
         // that narrow sanitization will allow broken code to still work,
         // and we can revisit this if there are enough cases in the wild.
-        if (!checkIllegalSuffixes(value, pos)) { return; }
+        if (!checkForbiddenIdList(value, pos)) { return; }
         dynamicValue = null;
         break;
       case FRAME_TARGET:
       case LOCAL_NAME:
-        if (!checkIllegalSuffix(value, pos)) { return; }
-        if (!checkRestrictedName(value, pos)) { return; }
+        if (!checkValidId(value, pos)) { return; }
         dynamicValue = null;
         break;
       case GLOBAL_NAME:
       case ID:
       case IDREF:
-        if (!checkIllegalSuffix(value, pos)) { return; }
-        if (!checkRestrictedName(value, pos)) { return; }
+        if (!checkValidId(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case IDREFS:
-        if (!checkIllegalSuffix(value, pos)) { return; }
-        if (!checkRestrictedNames(value, pos)) { return; }
+        if (!checkValidIdList(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case NONE:
@@ -405,66 +401,46 @@ public class TemplateCompiler {
     scriptsPerNode.put(attr, dynamicValue);
   }
 
-  private static final Pattern ILLEGAL_SUFFIX =
+  private static final Pattern IDENTIFIER_SEPARATOR = Pattern.compile("\\s+");
+  private static final Pattern FORBIDDEN_ID =
       Pattern.compile("__\\s*$");
-  private static final Pattern ILLEGAL_SUFFIXES =
-      Pattern.compile("(\\S*__)(\\s|$)");
+  private static final Pattern VALID_ID =
+      Pattern.compile("^[\\p{Alnum}$_:.\\-\\[\\]]+$");
 
-  /** True iff value does not end with __ */
-  private boolean checkIllegalSuffix(String value, FilePosition pos) {
-    if (!ILLEGAL_SUFFIX.matcher(value).find()) { return true; }
+  /** True iff value is not a forbidden id */
+  private boolean checkForbiddenId(String value, FilePosition pos) {
+    if (!FORBIDDEN_ID.matcher(value).find()) { return true; }
     mq.addMessage(
         IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, pos,
         MessagePart.Factory.valueOf(value));
     return false;
   }
 
-  /** True iff value does not have a word ending with __ */
-  private boolean checkIllegalSuffixes(String value, FilePosition pos) {
-    Matcher m = ILLEGAL_SUFFIXES.matcher(value);
-    if (!m.find()) { return true; }
-    // Narrow to the location of the bad word
-    FilePosition badPos = FilePosition.instance(
-        pos.source(), pos.startLineNo(),
-        pos.startCharInFile() + m.start(1),
-        pos.startCharInLine() + m.start(1),
-        m.end(1) - m.start(1));
+  /** True iff value does not contain a forbidden id */
+  private boolean checkForbiddenIdList(String value, FilePosition pos) {
+    boolean ok = true;
+    for (String ident : IDENTIFIER_SEPARATOR.split(value)) {
+      ok &= checkForbiddenId(ident, pos);
+    }
+    return ok;
+  }
+
+  /** True if value is a valid id */
+  private boolean checkValidId(String value, FilePosition pos) {
+    if (!checkForbiddenId(value, pos)) { return false; }
+    if ("".equals(value)) { return true; }
+    if (VALID_ID.matcher(value).find()) { return true; }
     mq.addMessage(
-        IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, badPos,
+        IhtmlMessageType.ILLEGAL_NAME, pos,
         MessagePart.Factory.valueOf(value));
     return false;
   }
 
-  private static final Pattern IDENTIFIER_SEPARATOR = Pattern.compile("\\s+");
-  private static final Pattern ALLOWED_NAME = Pattern.compile(
-      "^[\\p{Alpha}_:][\\p{Alnum}.\\-_:]*$");
-  /** True if value is a valid XML names outside the restricted namespace. */
-  private boolean checkRestrictedName(String value, FilePosition pos) {
-    assert "".equals(value) || !IDENTIFIER_SEPARATOR.matcher(value).find();
-    if (ALLOWED_NAME.matcher(value).find()) { return true; }
-    System.err.println("rejected ident `" + value + "`");
-    if (!"".equals(value)) {
-      mq.addMessage(
-          IhtmlMessageType.ILLEGAL_NAME, pos,
-          MessagePart.Factory.valueOf(value));
-    }
-    return false;
-  }
-  /**
-   * True iff value is a space separated group of XML names outside the
-   * restricted namespace.
-   */
-  private boolean checkRestrictedNames(String value, FilePosition pos) {
-    if ("".equals(value)) { return true; }
+  /** True iff value is a space-separated list of valid ids. */
+  private boolean checkValidIdList(String value, FilePosition pos) {
     boolean ok = true;
     for (String ident : IDENTIFIER_SEPARATOR.split(value)) {
-      if ("".equals(ident)) { continue; }
-      if (!ALLOWED_NAME.matcher(ident).matches()) {
-        mq.addMessage(
-            IhtmlMessageType.ILLEGAL_NAME, pos,
-            MessagePart.Factory.valueOf(ident));
-        ok = false;
-      }
+      ok &= checkValidId(ident, pos);
     }
     return ok;
   }

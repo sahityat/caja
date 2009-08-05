@@ -408,18 +408,19 @@ var attachDocumentStub = (function () {
 
   var XML_SPACE = '\t\n\r ';
 
-  var XML_NAME_PATTERN = new RegExp(
-      '^[' + unicode.LETTER + '_:][' + unicode.LETTER + unicode.DIGIT + '.\\-_:'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER + ']*$');
+  var VALID_ID_CHAR =
+      unicode.LETTER + unicode.DIGIT + '$_:.\\-\\[\\]'
+      + unicode.COMBINING_CHAR + unicode.EXTENDER;
 
-  var XML_NMTOKEN_PATTERN = new RegExp(
-      '^[' + unicode.LETTER + unicode.DIGIT + '.\\-_:'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER + ']+$');
+  var VALID_ID_PATTERN = new RegExp(
+      '^[' + VALID_ID_CHAR + ']+$');
 
-  var XML_NMTOKENS_PATTERN = new RegExp(
-      '^(?:[' + XML_SPACE + ']*[' + unicode.LETTER + unicode.DIGIT + '.\\-_:'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER + ']+)+[' + XML_SPACE + ']*$'
-      );
+  var VALID_ID_LIST_PATTERN = new RegExp(
+      '^[' + XML_SPACE + VALID_ID_CHAR + ']*$');
+
+  var FORBIDDEN_ID_PATTERN = new RegExp('__\\s*$');
+
+  var FORBIDDEN_ID_LIST_PATTERN = new RegExp('__(?:\\s|$)');
 
   var JS_SPACE = '\t\n\r ';
   // An identifier that does not end with __.
@@ -435,20 +436,14 @@ var attachDocumentStub = (function () {
       // And it can end with a semicolon.
       + '[' + JS_SPACE + ']*(?:;?[' + JS_SPACE + ']*)$');
 
-  /**
-   * Coerces the string to a valid XML Name.
-   * @see http://www.w3.org/TR/2000/REC-xml-20001006#NT-Name
-   */
-  function isXmlName(s) {
-    return XML_NAME_PATTERN.test(s);
+  function isValidId(s) {
+    return !FORBIDDEN_ID_PATTERN.test(s)
+        && VALID_ID_PATTERN.test(s);
   }
 
-  /**
-   * Coerces the string to valid XML Nmtokens
-   * @see http://www.w3.org/TR/2000/REC-xml-20001006#NT-Nmtokens
-   */
-  function isXmlNmTokens(s) {
-    return XML_NMTOKENS_PATTERN.test(s);
+  function isValidIdList(s) {
+    return !FORBIDDEN_ID_LIST_PATTERN.test(s)
+        && VALID_ID_LIST_PATTERN.test(s);
   }
 
   // Trim whitespace from the beginning and end of a CSS string.
@@ -804,14 +799,35 @@ var attachDocumentStub = (function () {
 
     /**
      * If str ends with suffix, return the part of str before suffix.
-     * Otherwise return ''.
+     * Otherwise return fail.
      */
-    function unsuffix(str, suffix) {
+    function unsuffix(str, suffix, fail) {
+      if (typeof str !== 'string') return fail;
       var n = str.length - suffix.length;
       if (0 < n && str.substring(n) === suffix) {
         return str.substring(0, n);
       } else {
-        return '';
+        return fail;
+      }
+    }
+
+    var ID_LIST_PARTS_PATTERN = new RegExp(
+      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
+
+    /** Convert a real attribute value to the value seen in a sandbox. */
+    function virtualizeAttributeValue(attrType, realValue) {
+      switch (attrType) {
+        case html4.atype.GLOBAL_NAME:
+        case html4.atype.ID:
+        case html4.atype.IDREF:
+          return unsuffix(realValue, idSuffix, null);
+        case html4.atype.IDREFS:
+          return realValue.replace(ID_LIST_PARTS_PATTERN,
+              function(_, id, spaces) {
+                return unsuffix(id, idSuffix, '') + spaces;
+              });
+        default:
+          return realValue;
       }
     }
 
@@ -828,36 +844,14 @@ var attachDocumentStub = (function () {
         startTag: function (tagName, attribs, out) {
           out.push('<', tagName);
           for (var i = 0; i < attribs.length; i += 2) {
-            var attribName = attribs[i];
-            if (attribName === 'target') { continue; }
-            var attribKey;
-            var atype;
-            if ((attribKey = tagName + ':' + attribName,
-                html4.ATTRIBS.hasOwnProperty(attribKey))
-                || (attribKey = '*:' + attribName,
-                    html4.ATTRIBS.hasOwnProperty(attribKey))) {
-              atype = html4.ATTRIBS[attribKey];
-            } else {
-              return;
-            }
+            var aname = attribs[i];
+            var atype = getAttributeType(tagName, aname);
             var value = attribs[i + 1];
-            // TODO(felix8a): consolidate the un-rewriteAttribute code.
-            switch (atype) {
-              case html4.atype.ID:
-              case html4.atype.IDREF:
-                value = unsuffix(value, idSuffix);
-                if (value === '') continue;
-                break;
-              case html4.atype.IDREFS:
-                value = value.replace(idRefsTails,
-                    function(_, id, spaces) {
-                      id = unsuffix(id, idSuffix);
-                      return id + spaces;
-                    });
-                break;
-            }
-            if (value !== null) {
-              out.push(' ', attribName, '="', html.escapeAttrib(value), '"');
+            if (aname !== 'target' && atype !== void 0) {
+              value = virtualizeAttributeValue(atype, value);
+              if (typeof value === 'string') {
+                out.push(' ', aname, '="', html.escapeAttrib(value), '"');
+              }
             }
           }
           out.push('>');
@@ -867,11 +861,6 @@ var attachDocumentStub = (function () {
         rcdata: function (text, out) { out.push(text); },
         cdata: function (text, out) { out.push(text); }
       });
-
-    var illegalSuffix = /__\s*$/;
-    var illegalSuffixes = /__(?:\s|$)/;
-    var idRefsTails = new RegExp(
-      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
 
     /**
      * Returns a normalized attribute value, or null if the attribute should
@@ -890,8 +879,9 @@ var attachDocumentStub = (function () {
     function rewriteAttribute(tagName, attribName, type, value) {
       switch (type) {
         case html4.atype.CLASSES:
+          // note, className is arbitrary CDATA.
           value = String(value);
-          if (!illegalSuffixes.test(value)) {
+          if (!FORBIDDEN_ID_LIST_PATTERN.test(value)) {
             return value;
           }
           return null;
@@ -899,20 +889,20 @@ var attachDocumentStub = (function () {
         case html4.atype.ID:
         case html4.atype.IDREF:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isXmlName(value)) {
+          if (value && isValidId(value)) {
             return value + idSuffix;
           }
           return null;
         case html4.atype.IDREFS:
           value = String(value);
-          if (value && !illegalSuffixes.test(value) && isXmlNmTokens(value)) {
-            return value.replace(idRefsTails,
+          if (value && isValidIdList(value)) {
+            return value.replace(ID_LIST_PARTS_PATTERN,
                 function(_, id, spaces) { return id + idSuffix + spaces; });
           }
           return null;
         case html4.atype.LOCAL_NAME:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isXmlName(value)) {
+          if (value && isValidId(value)) {
             return value;
           }
           return null;
@@ -1165,7 +1155,7 @@ var attachDocumentStub = (function () {
       // Filter out classnames in the restricted namespace.
       for (var i = classes ? classes.length : 0; --i >= 0;) {
         var classi = classes[i];
-        if (illegalSuffix.test(classi) || !isXmlNmTokens(classi)) {
+        if (FORBIDDEN_ID_PATTERN.test(classi)) {
           classes[i] = classes[classes.length - 1];
           --classes.length;
         }
@@ -2037,36 +2027,14 @@ var attachDocumentStub = (function () {
       }
       var value = bridal.getAttribute(this.node___, attribName);
       if ('string' !== typeof value) { return value; }
-      switch (atype) {
-        case html4.atype.GLOBAL_NAME:
-        case html4.atype.ID:
-        case html4.atype.IDREF:
-          if (!value) { return null; }
-          var n = idSuffix.length;
-          var len = value.length;
-          var end = len - n;
-          if (end > 0 && idSuffix === value.substring(end, len)) {
-            return value.substring(0, end);
-          }
-          return null;
-        case html4.atype.IDREFS:
-          if (!value) { return null; }
-          value = value.replace(idRefsTails,
-              function(_, id, spaces) {
-                id = unsuffix(id, idSuffix);
-                return id + spaces;
-              });
-          return value;
-        default:
-          if ('' === value) {
-            // IE creates attribute nodes for any attribute in the HTML schema
-            // so even when they are deleted, there will be a value, usually
-            // the empty string.
-            var attr = bridal.getAttributeNode(this.node___, attribName);
-            if (attr && !attr.specified) { return null; }
-          }
-          return value;
+      if ('' === value) {
+        // IE creates attribute nodes for any attribute in the HTML schema
+        // so even when they are deleted, there will be a value, usually
+        // the empty string.
+        var attr = bridal.getAttributeNode(this.node___, attribName);
+        if (attr && !attr.specified) { return null; }
       }
+      return virtualizeAttributeValue(atype, value);
     };
     TameElement.prototype.getAttributeNode = function (name) {
       var hostDomNode = bridal.getAttributeNode(this.node___, name);
