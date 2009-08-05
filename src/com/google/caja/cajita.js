@@ -92,10 +92,18 @@ if (Date.prototype.toJSON === void 0) {
   Date.prototype.toJSON = Date.prototype.toISOString;
 }
 
-/** In anticipation of ES4, and because it's useful. */
+/**
+ * Provide Array.slice like Firefox.  You can slice anything, and the
+ * result is always an array.  This behaves differently from Firefox in the
+ * exotic case of an array-like x with typeof x !== 'object'.
+ */
 if (Array.slice === void 0) {
   Array.slice = function (self, start, end) {
-    return Array.prototype.slice.call(self, start || 0, end || self.length);
+    if (typeof self === 'object') {
+      return Array.prototype.slice.call(self, start || 0, end || self.length);
+    } else {
+      return [];
+    }
   };
 }
 
@@ -1366,7 +1374,7 @@ var safeJSON;
    * property of x, then canReadPub(y, 'foo') must be true.
    */
   function canReadPub(obj, name) {
-    if (typeof name === 'number') { return name in obj; }
+    if (typeof name === 'number' && name >= 0) { return name in obj; }
     name = String(name);
     if (obj === null) { return false; }
     if (obj === void 0) { return false; }
@@ -1380,7 +1388,7 @@ var safeJSON;
   }
 
   function hasOwnPropertyOf(obj, name) {
-    if (typeof name === 'number') { return hasOwnProp(obj, name); }
+    if (typeof name === 'number' && name >= 0) { return hasOwnProp(obj, name); }
     name = String(name);
     if (obj && obj[name + '_canRead___'] === obj) { return true; }
     return canReadPub(obj, name) && myOriginalHOP.call(obj, name);
@@ -1408,13 +1416,17 @@ var safeJSON;
    * If it can't then <tt>readPub</tt> returns <tt>undefined</tt> instead.
    */
   function readPub(obj, name) {
-    if (typeof name === 'number') {
+    if (typeof name === 'number' && name >= 0) {
       if (typeof obj === 'string') {
         // In partial anticipation of ES3.1.
         // TODO(erights): Once ES3.1 settles, revisit this and
         // correctly implement the agreed semantics.
-        // Mike Samuel suggests also making it conditional on
+        // Mike Samuel suggested also making it conditional on
         //  (+name) === (name & 0x7fffffff)
+        // but then realized that it violates the requirement
+        // that the string form be the canonical form of the
+        // number. So 'foo'['00'] would be treated the same
+        // as 'foo'['0'] which is incorrect. 
         return obj.charAt(name);
       } else {
         return obj[name];
@@ -1458,7 +1470,7 @@ var safeJSON;
         return pumpkin;
       }
     }
-    if (typeof name === 'number') {
+    if (typeof name === 'number' && name >= 0) {
       if (myOriginalHOP.call(obj, name)) { return obj[name]; }
       return pumpkin;
     }
@@ -1756,6 +1768,7 @@ var safeJSON;
     // the check is expensive in this position.
 //  val = asFirstClass(val);
     if (typeof name === 'number' &&
+        name >= 0 &&
         // See issue 875
         obj instanceof Array &&
         obj.FROZEN___ !== obj) {
@@ -2614,6 +2627,23 @@ var safeJSON;
       }
     });
   }
+  
+  /**
+   * Produces a function module given an object literal module 
+   */
+  function prepareModule(module) {
+    function theModule(imports) {
+      return module.instantiate(___, imports);
+    }
+    markFuncOnly(theModule);
+      
+    forOwnKeys(module, markFuncFreeze(function(k, v) {
+      if (k != 'instantiate') {
+        setStatic(theModule, k, v);
+      }
+    }));
+    return primFreeze(theModule);
+  }
 
   /**
    * A module is an object literal containing metadata and an
@@ -3352,6 +3382,7 @@ var safeJSON;
     obtainNewModule: obtainNewModule,
     makeNormalNewModuleHandler: makeNormalNewModuleHandler,
     loadModule: loadModule,
+    prepareModule: prepareModule,
     NO_RESULT: NO_RESULT,
 
     getId: getId,

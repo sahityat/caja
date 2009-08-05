@@ -42,12 +42,12 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 public class HtmlEmitterTest extends CajaTestCase {
-  public void testJavascript() throws Exception {
+  public final void testJavascript() throws Exception {
     RhinoTestBed.runJsUnittestFromHtml(
         html(fromResource("html-emitter-test.html")));
   }
 
-  public void testCompiler() throws Exception {
+  public final void testCompiler() throws Exception {
     // Test that the input HTML produces the series of calls tested in
     // html-emitter-test.html.
     String input = (
@@ -75,14 +75,15 @@ public class HtmlEmitterTest extends CajaTestCase {
     assertEquals(
         ""
         + "<p>Hi</p>"
-        + "<div id=\"id_1___\"><span id=\"id_2___\">Hello </span>World!!!</div>"
+        + "<div id=\"id_1___\">Hello <span id=\"id_2___\"></span>World!!!</div>"
         + "<h1>Foo <b id=\"id_3___\">Bar</b> Baz</h1>"
         + "<h2 id=\"id_4___\">Boo</h2>",
         Nodes.render(htmlAndJs.a));
     // If you change this JS, also update the tests in html-emitter-test.html.
     List<String> jsLines =  Arrays.asList(
         "/* Start translated code */",
-        "throw 'Translated code must never be executed';{",
+        "throw 'Translated code must never be executed';",
+        "{",
         "  var el___;",
         "  var emitter___ = IMPORTS___.htmlEmitter___;",
         "  el___ = emitter___.byId('id_1___');",
@@ -95,8 +96,9 @@ public class HtmlEmitterTest extends CajaTestCase {
         "  ___.getNewModuleHandler().handleUncaughtException(ex___, onerror,",
         "      'testCompiler', '1');",
         "} /* Start translated code */",
-        "throw 'Translated code must never be executed';{",
-        "  emitter___.unwrap(emitter___.attach('id_2___'));",
+        "throw 'Translated code must never be executed';",
+        "{",
+        "  emitter___.discard(emitter___.attach('id_2___'));",
         "} /* End translated code */",
         "try {",
         "  { b(); }",
@@ -104,7 +106,8 @@ public class HtmlEmitterTest extends CajaTestCase {
         "  ___.getNewModuleHandler().handleUncaughtException(ex___, onerror,",
         "      'testCompiler', '1');",
         "} /* Start translated code */",
-        "throw 'Translated code must never be executed';{",
+        "throw 'Translated code must never be executed';",
+        "{",
         "  el___ = emitter___.byId('id_3___');",
         "  emitter___.attach('id_3___');",
         "  el___.removeAttribute('id');",
@@ -115,11 +118,12 @@ public class HtmlEmitterTest extends CajaTestCase {
         "  ___.getNewModuleHandler().handleUncaughtException(ex___, onerror,",
         "      'testCompiler', '1');",
         "} /* Start translated code */",
-        "throw 'Translated code must never be executed';{",
+        "throw 'Translated code must never be executed';",
+        "{",
         "  el___ = emitter___.byId('id_4___');",
         "  emitter___.setAttr(el___, 'id', 'x-' + IMPORTS___.getIdClass___());",
         "  el___ = emitter___.finish();",
-        "  emitter___.signalLoaded();",        
+        "  emitter___.signalLoaded();",
         "}",
         "/* End translated code */"
         );

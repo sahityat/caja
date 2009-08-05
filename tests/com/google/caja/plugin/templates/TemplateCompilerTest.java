@@ -37,8 +37,6 @@ import com.google.caja.reporting.MessageLevel;
 import com.google.caja.util.CajaTestCase;
 import com.google.caja.util.Pair;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.net.URI;
 
 import java.util.ArrayList;
@@ -69,28 +67,28 @@ public class TemplateCompilerTest extends CajaTestCase {
     });
   }
 
-  public void testEmptyModule() throws Exception {
+  public final void testEmptyModule() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("")),
         htmlFragment(fromString("")),
         new Block());
   }
 
-  public void testTopLevelTextNodes() throws Exception {
+  public final void testTopLevelTextNodes() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("Hello, <b title=howdy>World</b>!!!")),
         htmlFragment(fromString("Hello, <b title=howdy>World</b>!!!")),
         new Block());
   }
 
-  public void testSafeHtmlWithDynamicModuleId() throws Exception {
+  public final void testSafeHtmlWithDynamicModuleId() throws Exception {
     assertSafeHtml(
         htmlFragment(fromResource("template-compiler-input1.html", is)),
         htmlFragment(fromResource("template-compiler-golden1-dynamic.html")),
         js(fromResource("template-compiler-golden1-dynamic.js")));
   }
 
-  public void testSafeHtmlWithStaticModuleId() throws Exception {
+  public final void testSafeHtmlWithStaticModuleId() throws Exception {
     meta.setIdClass("xyz___");
 
     assertSafeHtml(
@@ -99,7 +97,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         js(fromResource("template-compiler-golden1-static.js")));
   }
 
-  public void testSignalLoadedAtEnd() throws Exception {
+  public final void testSignalLoadedAtEnd() throws Exception {
     // Ensure that, although finish() is called as soon as possible after the
     // last HTML is rolled forward, signalLoaded() is called at the very end,
     // after all scripts are encountered.
@@ -131,7 +129,7 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "}")));
   }
 
-  public void testTargetsRewritten() throws Exception {
+  public final void testTargetsRewritten() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<a href='foo' target='_self'>hello</a>")),
         htmlFragment(fromString(
@@ -140,7 +138,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testFormRewritten() throws Exception {
+  public final void testFormRewritten() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<form></form>")),
         htmlFragment(fromString(
@@ -149,7 +147,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testNamesRewritten() throws Exception {
+  public final void testNamesRewritten() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<a name='hi'></a>")),
         htmlFragment(fromString("<a id='id_1___' target='_blank'></a>")),
@@ -170,9 +168,9 @@ public class TemplateCompilerTest extends CajaTestCase {
         htmlFragment(fromString("<a name='hi'></a>")),
         htmlFragment(fromString("<a name='hi-xyz___' target='_blank'></a>")),
         new Block());
-    }
+  }
 
-  public void testSanityCheck() throws Exception {
+  public final void testSanityCheck() throws Exception {
     // The name attribute is not allowed on <p> elements, so
     // normally it would have been stripped out by the TemplateSanitizer pass.
     // Under no circumstances should it be emitted.
@@ -182,7 +180,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testFormName() throws Exception {
+  public final void testFormName() throws Exception {
     meta.setIdClass("suffix___");
     assertSafeHtml(
         htmlFragment(fromString("<form name='hi'></form>")),
@@ -193,7 +191,7 @@ public class TemplateCompilerTest extends CajaTestCase {
   }
 
   // See bug 722
-  public void testFormOnSubmitTrue() throws Exception {
+  public final void testFormOnSubmitTrue() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString(
             "<form onsubmit='alert(&quot;hi&quot;); return true;'></form>")),
@@ -221,7 +219,7 @@ public class TemplateCompilerTest extends CajaTestCase {
   }
 
   // See bug 722
-  public void testFormOnSubmitEmpty() throws Exception {
+  public final void testFormOnSubmitEmpty() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<form onsubmit=''></form>")),
         htmlFragment(fromString(
@@ -230,7 +228,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testImageSrc() throws Exception {
+  public final void testImageSrc() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<img src='blank.gif' width='20'/>")),
         htmlFragment(fromString(
@@ -238,7 +236,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testStyleRewriting() throws Exception {
+  public final void testStyleRewriting() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString(
             "<div style=\"position: absolute; background: url('bg-image')\">\n"
@@ -251,7 +249,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testEmptyStyleRewriting() throws Exception {
+  public final void testEmptyStyleRewriting() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<div style=>\nHello\n</div>\n")),
         htmlFragment(fromString("<div>\nHello\n</div>")),
@@ -262,14 +260,14 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testEmptyScriptRewriting() throws Exception {
+  public final void testEmptyScriptRewriting() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<div onclick=''>\nHello\n</div>\n")),
         htmlFragment(fromString("<div>\nHello\n</div>")),
         new Block());
   }
 
-  public void testDeferredScripts() throws Exception {
+  public final void testDeferredScripts() throws Exception {
     // If all the scripts are deferred, there is never any need to detach any
     // of the DOM tree.
     assertSafeHtml(
@@ -286,7 +284,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         );
   }
 
-  public void testMailto() throws Exception {
+  public final void testMailto() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString(
             "<a href='mailto:x@y' target='_blank'>z</a>")),
@@ -295,18 +293,51 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testComplexUrl() throws Exception {
+  public final void testComplexUrl() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString(
             "<a href='http://b/c;_d=e?f=g&i=%26' target='_blank'>z</a>")),
         htmlFragment(fromString(
             "<a href='http://b/c;_d=e?f=g&i=%26' target='_blank'>z</a>")),
         new Block());
+  }
+
+  public final void testTextAreas() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString(
+            ""
+            + "<textarea>Howdy!</textarea>"
+            + "<script>alert('Howdy yourself!');</script>"
+            + "<textarea>Bye!</textarea>")),
+        htmlFragment(fromString(
+            ""
+            // textareas can't contain nodes, so the span had better follow it
+            // which leaves it in the same position according to the
+            // depth-first-ordering ignoring end tags used by the HTML emitter.
+            + "<textarea>Howdy!</textarea>"
+            + "<span id=\"id_1___\"></span>"
+            + "<textarea>Bye!</textarea>")),
+        js(fromString(
+            ""
+            + "{"
+            + "  var el___; var emitter___ = IMPORTS___.htmlEmitter___;"
+            + "  emitter___.discard(emitter___.attach('id_1___'));"
+            + "}"
+            + "try {"
+            + "  { alert('Howdy yourself!'); }"
+            + "}catch (ex___) {"
+            + "  ___.getNewModuleHandler().handleUncaughtException("
+            + "      ex___, onerror, 'testTextAreas', '1');"
+            + "}"
+            + "{"
+            + "  el___ = emitter___.finish();"
+            + "  emitter___.signalLoaded();"
+            + "}")));
   }
 
   private class Holder<T> { T value; }
 
-  public void testUriAttributeResolution() throws Exception {
+  public final void testUriAttributeResolution() throws Exception {
     // Ensure that the TemplateCompiler calls its PluginEnvironment with the
     // correct information when it encounters a URI-valued HTML attribute.
 
@@ -346,7 +377,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         savedRef.value.getUri());
   }
 
-  public void testFinishCalledAtEnd() throws Exception {
+  public final void testFinishCalledAtEnd() throws Exception {
     // bug 1050, sometimes finish() is misplaced
     // http://code.google.com/p/google-caja/issues/detail?id=1050
     assertSafeHtml(
@@ -391,7 +422,7 @@ public class TemplateCompilerTest extends CajaTestCase {
    * of mandatory attributes.
    * http://code.google.com/p/google-caja/issues/detail?id=1056
    */
-  public void testBareTextarea() throws Exception {
+  public final void testBareTextarea() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<textarea></textarea>")),
         htmlFragment(fromString("<textarea></textarea>")),
