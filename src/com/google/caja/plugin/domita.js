@@ -47,7 +47,6 @@
  * TODO(ihab.awad): Come up with a uniform convention (and helper functions,
  * etc.) for checking that a user-supplied callback is a valid Cajita function
  * or Valija Disfunction.
-
  *
  * @author mikesamuel@gmail.com
  * @requires console, document, window
@@ -1017,6 +1016,9 @@ var attachDocumentStub = (function () {
             case 'img':
               tamed = new TameImageElement(node, editable);
               break;
+            case 'label':
+              tamed = new TameLabelElement(node, editable);
+              break;
             case 'script':
               tamed = new TameScriptElement(node, editable);
               break;
@@ -1076,14 +1078,18 @@ var attachDocumentStub = (function () {
       if (node === null || node === void 0) { return null; }
       // catch errors because node might be from a different domain
       try {
+        var docElem = node.ownerDocument.documentElement;
         for (var ancestor = node; ancestor; ancestor = ancestor.parentNode) {
           // TODO(mikesamuel): replace with cursors so that subtrees are
           // delegable.
           // TODO: handle multiple classes.
           if (idClass === ancestor.className) {
             return tameNodeCtor(node, editable);
+          } else if (ancestor === docElem) {
+            return null;
           }
         }
+        return tameNodeCtor(node, editable);
       } catch (e) {}
       return null;
     }
@@ -1426,8 +1432,7 @@ var attachDocumentStub = (function () {
         }
         return tameDocument.getBody();
       }
-      return tameRelatedNode(
-          this.node___.parentNode, this.editable___, defaultTameNode);
+      return tameRelatedNode(parent, this.editable___, defaultTameNode);
     };
     TameBackedNode.prototype.getElementsByTagName = function (tagName) {
       return tameGetElementsByTagName(
@@ -2536,6 +2541,19 @@ var attachDocumentStub = (function () {
     };
     ___.all2(___.grantTypedMethod, TameImageElement.prototype,
              ['getSrc', 'setSrc', 'getAlt', 'setAlt']);
+
+    function TameLabelElement(node, editable) {
+      TameElement.call(this, node, editable, editable);
+      classUtils.exportFields(this, ['htmlFor']);
+    }
+    inertCtor(TameLabelElement, TameElement, 'HTMLLabelElement');
+    TameLabelElement.prototype.getHtmlFor = function () {
+      return this.getAttribute('for');
+    };
+    TameLabelElement.prototype.setHtmlFor = function (id) {
+      this.setAttribute('for', id);
+      return id;
+    };
 
     /**
      * A script element wrapper that allows setting of a src that has been

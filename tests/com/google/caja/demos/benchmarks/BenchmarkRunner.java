@@ -14,24 +14,60 @@
 
 package com.google.caja.demos.benchmarks;
 
+import com.google.caja.lexer.CharProducer;
 import com.google.caja.parser.AncestorChain;
 import com.google.caja.plugin.PluginCompiler;
 import com.google.caja.plugin.PluginMeta;
+import com.google.caja.reporting.TestBuildInfo;
 import com.google.caja.util.CajaTestCase;
 import com.google.caja.util.RhinoTestBed;
-import com.google.caja.reporting.TestBuildInfo;
 
 /**
  * Unit test which executes the V8 benchmark 
  * and collates the result for rendering with varz
  */
 public class BenchmarkRunner extends CajaTestCase {
-  public void testRichards() throws Exception { runBenchmark("richards.js"); }
-  public void testDeltaBlue() throws Exception { runBenchmark("deltablue.js"); }
-  public void testCrypto() throws Exception { runBenchmark("crypto.js"); }
-  public void testRayTrace() throws Exception { runBenchmark("raytrace.js"); }
+  public void testRichards() throws Exception {
+    runBenchmark("v8-richards.js");
+  }
+  public void testDeltaBlue() throws Exception {
+    runBenchmark("v8-deltablue.js");
+  }
+  public void testCrypto() throws Exception {
+    runBenchmark("v8-crypto.js");
+  }
+  public void testRayTrace() throws Exception {
+    runBenchmark("v8-raytrace.js");
+  }
   public void testEarleyBoyer() throws Exception {
-    runBenchmark("earley-boyer.js");
+    runBenchmark("v8-earley-boyer.js");
+  }
+  public void testFunctionClosure() throws Exception {
+    runBenchmark("function-closure.js"); 
+  }
+  public void testFunctionCorrectArgs() throws Exception { 
+    runBenchmark("function-correct-args.js"); 
+  }
+  public void testFunctionEmpty() throws Exception { 
+    runBenchmark("function-empty.js"); 
+  }
+  public void testFunctionExcessArgs() throws Exception {
+    runBenchmark("function-excess-args.js");
+  }
+  public void testFunctionMissingArgs() throws Exception {
+    runBenchmark("function-missing-args.js");
+  }
+  public void testFunctionSum() throws Exception {
+    runBenchmark("function-sum.js");
+  }
+  public void testLoopEmptyResolve() throws Exception {
+    runBenchmark("loop-empty-resolve.js"); 
+  }
+  public void testLoopEmpty() throws Exception {
+    runBenchmark("loop-empty.js");
+  }
+  public void testLoopSum() throws Exception {
+    runBenchmark("loop-sum.js"); 
   }
 
 
@@ -43,55 +79,56 @@ public class BenchmarkRunner extends CajaTestCase {
    *               .<debug?>.<engine>.<primed?>
    */
   private void runBenchmark(String filename) throws Exception {
-    double timeTakenUncajoled = runUncajoled(filename);
-    double timeTakenCajoled = runCajoled(filename);
+    double uncajoledTime = runUncajoled(filename);
+    double cajoledTime = runCajoled(filename, false);
+    double cajoledWrappedTime = runCajoled(filename, true);
+    varz(getName(), uncajoledTime, cajoledTime);
     
-    System.out.println(
-        "VarZ:benchmark." + getName() + ".time.uncajoled.nodebug.rhino.cold="
-        + timeTakenUncajoled);
-    System.out.println(
-        "VarZ:benchmark." + getName() + ".time.valija.nodebug.rhino.cold=" 
-        + timeTakenCajoled);
-    System.out.println(
-        "VarZ:benchmark." + getName() + ".timeratio.valija.nodebug.rhino.cold="
-        + (timeTakenCajoled / timeTakenUncajoled));
+    // We rename the test here because wrapping globals is an optimization 
+    // that changes the benchmark -- albeit a trivial one that is easy for
+    // developers to perform on their own code.
+    varz(getName() + "WrapGlobals", uncajoledTime, cajoledWrappedTime);
+    
+    
   }
-
-  // Like run.js but outputs the result differently.
-  // Cannot use ___.getNewModuleHandler.getLastValue() to get the result since
-  // there is no UncajoledModule until We fix the compilation unit problem.
-  // Instead, we attach the result to an outer object called benchmark.
-  private static final String RUN_SCRIPT = (
-      ""
-      + "BenchmarkSuite.RunSuites({\n"
-      + "      NotifyResult: function (n, r) {\n"
-      + "        benchmark.name = n;\n"
-      + "        benchmark.result = r;\n"
-      + "      },\n"
-      + "      NotifyScore: function (s) { benchmark.score = s; }\n"
-      + "    });"
-      );
+  
+  private void varz(String name, double uncajoled, double cajoled) {
+    System.out.println(
+        "VarZ:benchmark." + name + ".time.uncajoled.nodebug.rhino.cold=" + 
+        uncajoled);
+    System.out.println(
+        "VarZ:benchmark." + name + ".time.valija.nodebug.rhino.cold=" +
+        cajoled);
+    System.out.println(
+        "VarZ:benchmark." + name + ".timeratio.valija.nodebug.rhino.cold=" +
+        (cajoled / uncajoled));
+  }
+  
+  private String wrapGlobals(String nakedJS) {
+    return "(function() {" + nakedJS + "})();";
+  }
   
   private double runUncajoled(String filename) throws Exception {
     Number elapsed = (Number) RhinoTestBed.runJs(
         new RhinoTestBed.Input("var benchmark = {};", "setup"),
         new RhinoTestBed.Input("benchmark.startTime = new Date();", "clock"),
-        new RhinoTestBed.Input(getClass(), "base.js"),
         new RhinoTestBed.Input(getClass(), filename),
-        new RhinoTestBed.Input(RUN_SCRIPT, getName()),
         new RhinoTestBed.Input("(new Date() - benchmark.startTime)", "elapsed"));
     return elapsed.doubleValue();
   }
 
-  private double runCajoled(String filename) throws Exception {
+  private double runCajoled(String filename, boolean wrapGlobals)
+    throws Exception {
     PluginMeta meta = new PluginMeta();
     meta.setValijaMode(true);
     PluginCompiler pc = new PluginCompiler(new TestBuildInfo(), meta, mq);
-    pc.addInput(AncestorChain.instance(js(fromResource("base.js"))));
-    pc.addInput(AncestorChain.instance(js(fromResource(filename))));
-    pc.addInput(AncestorChain.instance(js(fromString(RUN_SCRIPT))));
+    CharProducer src = wrapGlobals ? 
+        fromString(wrapGlobals(plain(fromResource(filename)))):
+            fromString(plain(fromResource(filename)));
+    pc.addInput(AncestorChain.instance(js(src)));
     assertTrue(pc.run());
     String cajoledJs = render(pc.getJavascript());
+    System.err.println("-- Cajoled:" + filename + "(wrapped: " + wrapGlobals + ") --\n" + cajoledJs + "\n---\n");
     Number elapsed = (Number) RhinoTestBed.runJs(
         new RhinoTestBed.Input(getClass(), 
             "../../../../../js/json_sans_eval/json_sans_eval.js"),

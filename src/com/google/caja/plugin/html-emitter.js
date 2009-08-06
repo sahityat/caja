@@ -21,9 +21,6 @@
  * mechanisms to reliably find elements using dynamically generated unique IDs
  * in the face of DOM modifications by untrusted scripts.
  *
- * TODO: automated browser tests.  detach/reattach hits some browser quirks.
- * http://code.google.com/p/google-caja/issues/detail?id=1060
- *
  * @author mikesamuel@gmail.com
  */
 function HtmlEmitter(base, opt_tameDocument) {
@@ -69,7 +66,7 @@ function HtmlEmitter(base, opt_tameDocument) {
     return null;
   }
 
-  // Below we define the attach, unwrap, and finish operations.
+  // Below we define the attach, detach, and finish operations.
   // These obey the conventions that:
   //   (1) All detached nodes, along with their ex-parents are in detached,
   //       and they are ordered depth-first.
@@ -206,20 +203,17 @@ function HtmlEmitter(base, opt_tameDocument) {
     return limit;
   }
   /**
-   * Removes a TextNode wrapper.
-   * When the last node before a script block is a TextNode, the
-   * TemplateCompiler labels that TextNode by wrapping it in a span, and
-   * adds a call to unwrap() to tell us when to remove the span.
+   * Removes a script place-holder.
+   * When a text node immediately precedes a script block, the limit will be
+   * a text node.  Text nodes can't be addressed by ID, so the TemplateCompiler
+   * follows them with a {@code <span>} which must be removed to be semantics
+   * preserving.
    */
-  function unwrap(wrapper) {
-    // At this point, the wrapper's TextNode child has been removed and
-    // placed at the front of the detached nodes list.  There should never
-    // be more than one, but sometimes there's zero, because some browsers
-    // (such as IE) do not create a TextNode when it's only whitespace.
-    if (detached[1] === wrapper) {
-      wrapper.parentNode.replaceChild(detached[0], wrapper);
-      detached.splice(0, 2);
-    }
+  function discard(placeholder) {
+    // An untrusted script block should not be able to access the wrapper before
+    // it's removed since it won't be part of the DOM so there should be a
+    // parentNode.
+    placeholder.parentNode.removeChild(placeholder);
   }
   /**
    * Reattach any remaining detached bits, free resources, and fire a document
@@ -248,18 +242,21 @@ function HtmlEmitter(base, opt_tameDocument) {
   function setAttr(el, attrName, value) {
     bridal.setAttribute(el, attrName, value);
 
-    // onevent attributes are extra special
-    var tagAttr = el.tagName.toLowerCase() + ':' + attrName;
-    if (html4.ATTRIBS[tagAttr] === html4.atype.SCRIPT
-        || html4.ATTRIBS['*:' + attrName] === html4.atype.SCRIPT) {
-      // IE<8 requires us to set onevent attributes this way.
+    // for IE<8, we need to handle onevent= attributes specially.
+    // toLowerCase might screw up I/i in turkish, but that's harmless here.
+    var key = el.tagName.toLowerCase() + ':' + attrName;
+    var atype =
+        html4.ATTRIBS.hasOwnProperty(key)
+        ? html4.ATTRIBS[key]
+        : html4.ATTRIBS['*:' + attrName];
+    if (atype === html4.atype.SCRIPT) {
       el[attrName] = new Function('event', value);
     }
   }
 
   this.byId = byId;
   this.attach = attach;
-  this.unwrap = unwrap;
+  this.discard = discard;
   this.finish = finish;
   this.signalLoaded = signalLoaded;
   this.setAttr = setAttr;
