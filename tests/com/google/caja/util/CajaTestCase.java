@@ -45,6 +45,12 @@ import com.google.caja.reporting.MessageQueue;
 import com.google.caja.reporting.MessageTypeInt;
 import com.google.caja.reporting.RenderContext;
 
+import junit.framework.TestCase;
+
+import org.w3c.dom.DocumentFragment;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+
 import java.awt.GraphicsEnvironment;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -52,12 +58,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.net.URI;
-
-import org.w3c.dom.DocumentFragment;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-
-import junit.framework.TestCase;
 
 public abstract class CajaTestCase extends TestCase {
   protected InputSource is;
@@ -106,6 +106,10 @@ public abstract class CajaTestCase extends TestCase {
         new InputStreamReader(in, "UTF-8"), is);
     mc.addInputSource(is);
     return cp;
+  }
+
+  protected String plain(CharProducer cp) {
+    return cp.toString(cp.getOffset(), cp.getLimit());
   }
 
   protected Block js(CharProducer cp) throws ParseException {
@@ -222,6 +226,9 @@ public abstract class CajaTestCase extends TestCase {
   }
 
   public static String render(ParseTreeNode node) {
+    if (node == null) {
+      return null;
+    }
     StringBuilder sb = new StringBuilder();
     TokenConsumer tc = node.makeRenderer(sb, null);
     node.render(new RenderContext(tc));
@@ -230,6 +237,9 @@ public abstract class CajaTestCase extends TestCase {
   }
 
   protected String minify(ParseTreeNode node) {
+    if (node == null) {
+      return null;
+    }
     // Make sure it's a JS node.
     StringBuilder sb = new StringBuilder();
     if (!(node.makeRenderer(sb, null) instanceof JsPrettyPrinter)) {
