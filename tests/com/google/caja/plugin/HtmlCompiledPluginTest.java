@@ -280,7 +280,6 @@ public class HtmlCompiledPluginTest extends CajaTestCase {
                 valijaCajoled,
                 "valija-cajoled"),
             new RhinoTestBed.Input(getClass(), "bridal.js"),
-            new RhinoTestBed.Input(getClass(), "html4-defs.js"),
             new RhinoTestBed.Input(getClass(), "html-emitter.js"),
             new RhinoTestBed.Input(getClass(), "container.js"),
             // The gadget
