@@ -40,7 +40,8 @@ function HtmlEmitter(base, opt_tameDocument) {
     idMap = {};
     var descs = base.getElementsByTagName('*');
     for (var i = 0, desc; (desc = descs[i]); ++i) {
-      if (desc.id) { idMap[desc.id] = desc; }
+      var id = desc.getAttribute('id');
+      if (id) { idMap[id] = desc; }
     }
   }
   /**
@@ -238,26 +239,10 @@ function HtmlEmitter(base, opt_tameDocument) {
     return this;
   }
 
-  /** Set an attribute on an element */
-  function setAttr(el, attrName, value) {
-    bridal.setAttribute(el, attrName, value);
-
-    // for IE<8, we need to handle onevent= attributes specially.
-    // toLowerCase might screw up I/i in turkish, but that's harmless here.
-    var key = el.tagName.toLowerCase() + ':' + attrName;
-    var atype =
-        html4.ATTRIBS.hasOwnProperty(key)
-        ? html4.ATTRIBS[key]
-        : html4.ATTRIBS['*:' + attrName];
-    if (atype === html4.atype.SCRIPT) {
-      el[attrName] = new Function('event', value);
-    }
-  }
-
   this.byId = byId;
   this.attach = attach;
   this.discard = discard;
   this.finish = finish;
   this.signalLoaded = signalLoaded;
-  this.setAttr = setAttr;
+  this.setAttr = bridal.setAttribute;
 }

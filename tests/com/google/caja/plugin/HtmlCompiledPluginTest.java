@@ -100,10 +100,10 @@ public class HtmlCompiledPluginTest extends CajaTestCase {
     execGadget(
         "<a onclick=\"foo(this)\">hi</a>",
 
-        "assertEquals('<a onclick=\"return plugin_dispatchEvent___(" +
-        "this, event, 0, \\'c_1___\\');\" target=\"_blank\">hi</a>'," +
-        " document.getElementById('test-test').innerHTML)",
-
+        // Handler is attached separately.
+        ""
+        + "assertEquals('<a target=\"_blank\">hi</a>',"
+        + "             document.getElementById('test-test').innerHTML);",
         true);
   }
 
@@ -236,8 +236,8 @@ public class HtmlCompiledPluginTest extends CajaTestCase {
       Block valijaOrigNode = js(fromResource(
           "/com/google/caja/valija-cajita.js"));
       ParseTreeNode valijaCajoledNode =
-          new CajitaRewriter(new TestBuildInfo(), false)
-              .expand(new UncajoledModule(valijaOrigNode), mq);
+          new CajitaRewriter(new TestBuildInfo(), mq, false)
+              .expand(new UncajoledModule(valijaOrigNode));
       String valijaCajoled = render(valijaCajoledNode);
 
       String htmlStubUrl = TestUtil.makeContentUrl(
@@ -280,7 +280,6 @@ public class HtmlCompiledPluginTest extends CajaTestCase {
                 valijaCajoled,
                 "valija-cajoled"),
             new RhinoTestBed.Input(getClass(), "bridal.js"),
-            new RhinoTestBed.Input(getClass(), "html4-defs.js"),
             new RhinoTestBed.Input(getClass(), "html-emitter.js"),
             new RhinoTestBed.Input(getClass(), "container.js"),
             // The gadget

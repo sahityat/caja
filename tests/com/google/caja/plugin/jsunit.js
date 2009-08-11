@@ -79,7 +79,7 @@ function jsunitRun(opt_testNames) {
   for (var k in jsunit.tests) {
     if (jsunit.tests.hasOwnProperty(k)) {
       if (!opt_testNames || arrayContains(arguments, k)) {
-        testNames.push(k); 
+        testNames.push(k);
       }
     }
   }

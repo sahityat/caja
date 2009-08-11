@@ -1930,8 +1930,10 @@ var attachDocumentStub = (function () {
     TameBackedAttributeNode.prototype.getNodeName =
     TameBackedAttributeNode.prototype.getName =
         function () { return String(this.node___.name); };
-    TameBackedAttributeNode.prototype.getSpecified =
-        function () { return !!this.node___.specified; };
+    TameBackedAttributeNode.prototype.getSpecified = function () {
+      return defaultTameNode(this.ownerElement___, this.editable___)
+          .hasAttribute(this.getName());
+    };
     TameBackedAttributeNode.prototype.getNodeValue =
     TameBackedAttributeNode.prototype.getValue = function () {
       return defaultTameNode(this.ownerElement___, this.editable___)
@@ -3708,18 +3710,14 @@ var attachDocumentStub = (function () {
         get: function () { return tameDocument.body___.scrollWidth; }
       }
     }, ___.markFuncFreeze(function (propertyName, def) {
-      var setter = def.set || propertyOnlyHasGetter;
-      // TODO(mikesamuel): define on prototype.
-      ___.useGetHandler(tameWindow, propertyName, def.get);
-      ___.useSetHandler(tameWindow, propertyName, setter);
-      ___.useGetHandler(tameDefaultView, propertyName, def.get);
-      ___.useSetHandler(tameDefaultView, propertyName, setter);
-      var tameBody = tameDocument.getBody();
-      ___.useGetHandler(tameBody, propertyName, def.get);
-      ___.useSetHandler(tameBody, propertyName, setter);
-      var tameDocEl = tameDocument.getDocumentElement();
-      ___.useGetHandler(tameDocEl, propertyName, def.get);
-      ___.useSetHandler(tameDocEl, propertyName, setter);
+      var views = [tameWindow, tameDefaultView, tameDocument.getBody(),
+                   tameDocument.getDocumentElement()];
+      var setter = def.set || propertyOnlyHasGetter, getter = def.get;
+      for (var i = views.length; --i >= 0;) {
+        var view = views[i];
+        ___.useGetHandler(view, propertyName, getter);
+        ___.useSetHandler(view, propertyName, setter);
+      }
     }));
 
     cajita.forOwnKeys({
