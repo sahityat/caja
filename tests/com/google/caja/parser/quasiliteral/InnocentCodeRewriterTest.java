@@ -30,7 +30,7 @@ public class InnocentCodeRewriterTest extends RewriterTestCase {
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    setRewriter(new InnocentCodeRewriter(false));
+    setRewriter(new InnocentCodeRewriter(mq, false));
   }
 
   // Tests block-level forEach statements
@@ -149,9 +149,11 @@ public class InnocentCodeRewriterTest extends RewriterTestCase {
         ";");
     rewriteAndExecute(
         ";",
-        "assertThrows(function a() {" +
-        "  return this;" +
-        "});",
+        "assertEquals(undefined, (function a() { return this; })());",
+        ";");
+    rewriteAndExecute(
+        ";",
+        "assertEquals(assertEquals, this.assertEquals);",
         ";");
   }
 
