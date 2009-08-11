@@ -1332,10 +1332,12 @@ jsunitRegister('testTargetAttr',
 jsunitRegister('testLocation',
                function testLocation() {
   assertEquals(
-      window.location.host, window.location.hostname + ':' + window.location.port);
+      window.location.host,
+      window.location.hostname + ':' + window.location.port);
   assertEquals(
-      window.location.href, window.location.protocol + '//'
-      + window.location.hostname + ':' + window.location.port + window.location.pathname
+      window.location.href,
+      window.location.protocol + '//' + window.location.hostname
+      + ':' + window.location.port + window.location.pathname
       + window.location.search + window.location.hash);
   assertEquals(
       'http://zip.example.com:4242/pumpkin.html?q=getit#myanchor',
@@ -1781,7 +1783,7 @@ jsunitRegister('testComputedStyle',
   var NO_RESULT = {};
   var pseudoElementsSupported = false;
   try {
-    window.getComputedStyle(fakie, 'first-line').display;
+    var unused = window.getComputedStyle(fakie, 'first-line').display;
     pseudoElementsSupported = true;
   } catch (ex) {
     // Not supported on all browsers
@@ -2103,19 +2105,19 @@ jsunitRegister('testFactoriesNotBypassable',
 
 jsunitRegister('testScrolling',
                function testScrolling() {
-  assertEquals('0,0,0,0', String([
+  var initialViewPort = String([
       window.scrollLeft, window.scrollTop,
-      document.defaultView.scrollLeft, document.defaultView.scrollTop]));
+      document.defaultView.scrollLeft, document.defaultView.scrollTop]);
   assertEquals(
-      'visible',
+      'hidden',
       directAccess.getComputedStyle(directAccess.getBodyNode(), 'overflow'));
 
   window.scrollBy(0, 0);
-  assertEquals('0,0,0,0', String([
+  assertEquals(initialViewPort, String([
       window.scrollLeft, window.scrollTop,
       document.defaultView.scrollLeft, document.defaultView.scrollTop]));
   assertEquals(
-      'visible',
+      'hidden',
       directAccess.getComputedStyle(directAccess.getBodyNode(), 'overflow'));
 
   window.scrollTo(0, 10);
@@ -2148,14 +2150,20 @@ jsunitRegister('testScrolling',
 jsunitRegister('testResizing',
                function testResizing() {
   function windowDims() {
-    assertEquals(window.clientWidth, document.defaultView.clientWidth);
-    assertEquals(window.clientHeight, document.defaultView.clientHeight);
-    assertEquals(window.clientWidth, document.body.clientWidth);
-    assertEquals(window.clientHeight, document.body.clientHeight);
-    assertEquals(window.clientWidth, document.documentElement.clientWidth);
-    assertEquals(window.clientHeight, document.documentElement.clientHeight);
-    assertEquals(window.clientWidth, window.innerWidth);
-    assertEquals(window.clientHeight, window.innerHeight);
+    assertEquals('document.defaultView.clientWidth',
+                 window.clientWidth, document.defaultView.clientWidth);
+    assertEquals('document.defaultView.clientHeight',
+                 window.clientHeight, document.defaultView.clientHeight);
+    assertEquals('document.body.clientWidth',
+                 window.clientWidth, document.body.clientWidth);
+    assertEquals('document.body.clientHeight',
+                 window.clientHeight, document.body.clientHeight);
+    assertEquals('document.documentElement.clientWidth',
+                 window.clientWidth, document.documentElement.clientWidth);
+    assertEquals('document.documentElement.clientHeight',
+                 window.clientHeight, document.documentElement.clientHeight);
+    assertEquals('window.innerWidth', window.clientWidth, window.innerWidth);
+    assertEquals('window.innerHeight', window.clientHeight, window.innerHeight);
     return String([window.clientWidth, window.clientHeight]);
   }
 
@@ -2277,6 +2285,7 @@ jsunitRegister('testBoundingClientRect',
   var absPos = document.getElementById('absolutely-positioned');
   var relPos = document.getElementById('relatively-positioned');
 
+  window.scrollLeft = window.scrollTop = 0;
   var absRect = absPos.getBoundingClientRect();
   var relRect = relPos.getBoundingClientRect();
 
@@ -2305,31 +2314,42 @@ jsunitRegister('testAttributeNodes',
   assertEquals(cb, attrNode.ownerElement);
   assertEquals('id', attrNode.name);
 
-  assertEquals(null, cb.getAttributeNode('name'));
+  assertNoAttr(cb.getAttributeNode('name'));
+
+  function assertNoAttr(attrNode) {
+    if (attrNode === null) { return; }
+    assertFalse('specified ' + attrNode.name, attrNode.specified);
+    assertEquals(
+        'non blank value for ' + attrNode.name, '', attrNode.value || '');
+  }
 
   function checkScriptAttrNode(attrNode) {
-    var scriptAttrRE = new RegExp('plugin_dispatchEvent___\\(.*\\);');
+    if (attrNode == null || (!attrNode.specified && '' === attrNode.value)) {
+      return;  // Works if node not present.
+    }
+    // If it is present, it had better be rewritten.
+    var scriptAttrRE = new RegExp('\\bplugin_dispatchEvent___\\(');
 
     function assertScript(value) {
-      assertTrue(value.match(scriptAttrRE).length > 0);
+      value = '' + value;
+      assertTrue(scriptAttrRE.test(value));
     }
 
     assertScript(attrNode.value);
     assertScript(attrNode.nodeValue);
   }
 
-  checkScriptAttrNode(cb.getAttributeNode('onclick'));
-
-  var onclickAttrNode;
-  for (var i = 0; i < cb.attributes.length; ++i) {
-    if (cb.attributes[i].name === 'onclick') {
-      onclickAttrNode = cb.attributes[i];
-    }
-  }
-  assertTrue(!!onclickAttrNode);
+  var onclickAttrNode = cb.getAttributeNode('onclick');
   checkScriptAttrNode(onclickAttrNode);
 
-  onclickAttrNode.value = 'globalSideEffect();';
+  try {
+    cb.onclick = 'globalSideEffect();';
+  } catch (ex) {}
+  if (onclickAttrNode) {
+    try {
+      onclickAttrNode.value = 'globalSideEffect();';
+    } catch (ex) {}
+  }
   checkScriptAttrNode(onclickAttrNode);
 
   pass('test-attribute-nodes');
@@ -2436,7 +2456,7 @@ jsunitRegister('testTableElements',
 jsunitRegister('testThisInEventHandlers',
                function testThisInEventHandlers() {
   var inp = document.getElementById('test-this-in-event-handlers-1');
-  
+
   // By declaring f() to be cajita, but supplying it as the 'call'
   // property of the object passed to the event listener, we get
   // access to the value the function is supposed to use for the
@@ -2444,7 +2464,7 @@ jsunitRegister('testThisInEventHandlers',
   function f($dis, event, thisNode) {
     "use cajita";
     // In an event handler, "this" should be bound to the node.
-    assertEquals($dis, thisNode); 
+    assertEquals($dis, thisNode);
     pass('test-this-in-event-handlers');
   }
   inp.addEventListener('click', {call: f}, false);
@@ -2485,7 +2505,7 @@ jsunitRegister('testRowCell',
 
 jsunitRegister('testNegativeIndices',
                function testNegativeIndices() {
-  // Under Firefox, there are many undocumented properties 
+  // Under Firefox, there are many undocumented properties
   // with negative indices; see
   // http://www.thespanner.co.uk/2009/07/14/hidden-firefox-properties-revisited/
   // http://webreflection.blogspot.com/2009/06/javascript-arguments-weridness.html

@@ -20,13 +20,15 @@ import com.google.caja.lexer.FilePosition;
 import com.google.caja.lexer.InputSource;
 import com.google.caja.lexer.ParseException;
 import com.google.caja.parser.ParseTreeNode;
-import com.google.caja.parser.ParseTreeNodes;
 import com.google.caja.parser.js.Block;
 import com.google.caja.parser.js.FormalParam;
 import com.google.caja.parser.js.FunctionConstructor;
 import com.google.caja.parser.js.FunctionDeclaration;
 import com.google.caja.parser.js.Identifier;
+import com.google.caja.parser.js.Operation;
 import com.google.caja.parser.js.Operator;
+import com.google.caja.parser.js.Reference;
+import com.google.caja.parser.js.ReturnStmt;
 import com.google.caja.parser.js.Statement;
 import com.google.caja.parser.js.StringLiteral;
 import com.google.caja.parser.js.SyntheticNodes;
@@ -72,13 +74,13 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
     }
   }
 
-  protected Rewriter defaultCajaRewriter =
-      new CajitaRewriter(new TestBuildInfo(), false);
+  protected Rewriter cajitaRewriter;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    setRewriter(defaultCajaRewriter);
+    cajitaRewriter = new CajitaRewriter(new TestBuildInfo(), mq, false);
+    setRewriter(cajitaRewriter);
   }
 
   /**
@@ -435,12 +437,8 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
   }
 
   public final void testSyntheticNestedIsExpanded() throws Exception {
-    ParseTreeNode innerInput = js(fromString("function foo() {}"));
-    ParseTreeNode input = ParseTreeNodes.newNodeInstance(
-        Block.class,
-        FilePosition.UNKNOWN,
-        null,
-        Collections.singletonList(innerInput));
+    Statement innerInput = js(fromString("function foo() {}"));
+    Block input = new Block(FilePosition.UNKNOWN, Arrays.asList(innerInput));
     makeSynthetic(input);
     ParseTreeNode expectedResult = js(fromString(
         "var foo; { foo = (function () {\n" +
@@ -458,7 +456,7 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
     Block innerBlock = js(fromString("foo().x = bar();"));
     ParseTreeNode input = new Block(
         FilePosition.UNKNOWN,
-        java.util.Arrays.asList(
+        Arrays.asList(
             new FunctionDeclaration(
                 SyntheticNodes.s(new FunctionConstructor(
                     FilePosition.UNKNOWN,
@@ -479,6 +477,59 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
         + weldSetPub("foo.CALL___()", "x", "bar.CALL___()", "x0___", "x1___")
         + ";}"));
     checkSucceeds(input, expectedResult);
+  }
+
+  public final void testSyntheticFormals() throws Exception {
+    FilePosition unk = FilePosition.UNKNOWN;
+    FunctionConstructor fc = new FunctionConstructor(
+        unk,
+        new Identifier(unk, "f"),
+        Arrays.asList(
+            new FormalParam(new Identifier(unk, "x")),
+            new FormalParam(
+                SyntheticNodes.s(new Identifier(unk, "y___")))),
+        new Block(
+            unk,
+            Arrays.<Statement>asList(new ReturnStmt(
+                unk,
+                Operation.createInfix(
+                    Operator.MULTIPLICATION,
+                    Operation.createInfix(
+                        Operator.ADDITION,
+                        new Reference(new Identifier(unk, "x")),
+                        new Reference(SyntheticNodes.s(
+                            new Identifier(unk, "y___")))),
+                    new Reference(new Identifier(unk, "z")))))));
+    checkSucceeds(
+        new Block(
+            unk,
+            Arrays.asList(
+                new FunctionDeclaration((FunctionConstructor) fc.clone()))),
+        js(fromString(
+            ""
+            // x and y___ are formals, but z is free to the function.
+            + "var z = ___.readImport(IMPORTS___, 'z');"
+            + "function f(x, y___) {"
+            + "  return (x + y___) * z;"
+            + "}"
+            // Since the function is not synthetic, it's marked.
+            + "___.markFuncOnly(f, 'f');;")));
+
+    SyntheticNodes.s(fc);
+    checkSucceeds(
+        new Block(
+            unk,
+            Arrays.asList(
+                new FunctionDeclaration((FunctionConstructor) fc.clone()))),
+        js(fromString(
+            ""
+            // x and y___ are formals, but z is free to the function.
+            + "var z = ___.readImport(IMPORTS___, 'z');"
+            + "function f(x, y___) {"
+            + "  return (x + y___) * z;"
+            + "}"
+            // Since the function is synthetic, it is not marked.
+            )));
   }
 
   ////////////////////////////////////////////////////////////////////////
@@ -1107,7 +1158,7 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
         "Variables cannot end in \"__\"");
   }
 
-  public  void testSetDeclare() throws Exception {
+  public final void testSetDeclare() throws Exception {
     checkSucceeds(
         "var v;",
         "var v;");
@@ -1566,7 +1617,7 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
         "}();");
   }
 
-  public void testMaskingFunction () throws Exception {
+  public final void testMaskingFunction() throws Exception {
     assertAddsMessage(
         "function Goo() { function Goo() {} }",
         MessageType.SYMBOL_REDEFINED,
@@ -1953,7 +2004,7 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
         + "var x = 1;\n"
         + "var f = function x(b) { return b ? 1 : x(true); };\n"
         + "assertEquals(2, x + f());"));
-    ParseTreeNode cajoled = defaultCajaRewriter.expand(input, mq);
+    ParseTreeNode cajoled = cajitaRewriter.expand(input);
     assertNoErrors();
     ParseTreeNode emulated = emulateIE6FunctionConstructors(cajoled);
     executePlain(
@@ -2292,7 +2343,7 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
   // for those tests that run against other ParseTreeNode
   public final void testModule() throws Exception {
     CajitaModuleRewriter moduleRewriter = new CajitaModuleRewriter(
-        new TestBuildInfo(), new TestPluginEnvironment(), false);
+        new TestBuildInfo(), new TestPluginEnvironment(), mq, false);
     setRewriter(moduleRewriter);
 
     rewriteAndExecute(
@@ -2322,7 +2373,7 @@ public class CajitaRewriterTest extends CommonJsRewriterTestCase {
         RewriterMessageType.CANNOT_LOAD_A_DYNAMIC_MODULE,
         MessageLevel.FATAL_ERROR);
 
-    setRewriter(defaultCajaRewriter);
+    setRewriter(cajitaRewriter);
   }
 
   @Override
