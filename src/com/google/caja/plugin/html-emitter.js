@@ -180,6 +180,8 @@ function HtmlEmitter(base, opt_tameDocument) {
         limitAnc = parent;
       }
       // Reattach up to and including limit ancestor.
+      // If some browser quirk causes us to miss limit in detached, we'll
+      // reattach everything and try to continue.
       var nConsumed = 0;
       while (nConsumed < detached.length) {
         // in IE, some types of nodes can't be standalone, and detaching
