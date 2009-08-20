@@ -34,6 +34,7 @@ import com.google.caja.parser.css.CssParser;
 import com.google.caja.parser.css.CssTree;
 import com.google.caja.parser.html.Nodes;
 import com.google.caja.parser.js.Block;
+import com.google.caja.parser.js.Declaration;
 import com.google.caja.parser.js.Expression;
 import com.google.caja.parser.js.FunctionConstructor;
 import com.google.caja.parser.js.Identifier;
@@ -67,7 +68,6 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.w3c.dom.Attr;
@@ -111,7 +111,7 @@ public class TemplateCompiler {
    * <li>If the node is an attribute, then the value is an expression
    * that returns a (key, value) pair.</li>
    *
-   * <li>If the node is a text node inside ascript block, then the value is an
+   * <li>If the node is a text node inside a script block, then the value is an
    * {@link UncajoledModule}.</li>
    *
    * <li>Otherwise, the value is a JavaScript expression which evaluates to the
@@ -296,25 +296,22 @@ public class TemplateCompiler {
         // We could try deleting just the bad words, but it seems unlikely
         // that narrow sanitization will allow broken code to still work,
         // and we can revisit this if there are enough cases in the wild.
-        if (!checkIllegalSuffixes(value, pos)) { return; }
+        if (!checkForbiddenIdList(value, pos)) { return; }
         dynamicValue = null;
         break;
       case FRAME_TARGET:
       case LOCAL_NAME:
-        if (!checkIllegalSuffix(value, pos)) { return; }
-        if (!checkRestrictedName(value, pos)) { return; }
+        if (!checkValidId(value, pos)) { return; }
         dynamicValue = null;
         break;
       case GLOBAL_NAME:
       case ID:
       case IDREF:
-        if (!checkIllegalSuffix(value, pos)) { return; }
-        if (!checkRestrictedName(value, pos)) { return; }
+        if (!checkValidId(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case IDREFS:
-        if (!checkIllegalSuffixes(value, pos)) { return; }
-        if (!checkRestrictedNames(value, pos)) { return; }
+        if (!checkValidIdList(value, pos)) { return; }
         dynamicValue = rewriteIdentifiers(pos, value);
         break;
       case NONE:
@@ -334,21 +331,30 @@ public class TemplateCompiler {
           rewriteEventHandlerReferences(b);
 
           handlerFnName = meta.generateUniqueName("c");
-          handlers.add(QuasiUtil.quasiStmt(
+          Declaration handler = (Declaration) QuasiBuilder.substV(
               ""
-              + "IMPORTS___.@handlerName = function ("
-              + "    event, " + ReservedNames.THIS_NODE + ") { @body*; };",
-              "handlerName", new Reference(SyntheticNodes.s(
-                  new Identifier(FilePosition.UNKNOWN, handlerFnName))),
-              "body", new ParseTreeNodeContainer(b.children())));
+              + "var @handlerName = ___./*@synthetic*/markFuncFreeze("
+              + "    /*@synthetic*/function ("
+              + "        event, " + ReservedNames.THIS_NODE + ") { @body*; });",
+              "handlerName", SyntheticNodes.s(
+                  new Identifier(FilePosition.UNKNOWN, handlerFnName)),
+              "body", new ParseTreeNodeContainer(b.children()));
+          handlers.add(handler);
           handlerCache.put(attr.getValue(), handlerFnName);
         }
 
-        dynamicValue = (Expression) QuasiBuilder.substV(
-            "'return plugin_dispatchEvent___("
-            + "this, event, ' + ___./*@synthetic*/getId(IMPORTS___) + @tail",
-            "tail", StringLiteral.valueOf(
-                pos, ", " + StringLiteral.toQuotedValue(handlerFnName) + ");"));
+        FunctionConstructor eventAdapter
+            = (FunctionConstructor) QuasiBuilder.substV(
+            ""
+            + "(/*@synthetic*/ function (event) {"
+            + "  return /*@synthetic*/ (plugin_dispatchEvent___("
+            + "      /*@synthetic*/this, event, "
+            + "      ___./*@synthetic*/getId(IMPORTS___), @tail));"
+            + "})",
+            "tail", new Reference(SyntheticNodes.s(
+                new Identifier(pos, handlerFnName))));
+        eventAdapter.setFilePosition(pos);
+        dynamicValue = eventAdapter;
         break;
       case STYLE:
         CssTree.DeclarationGroup decls;
@@ -405,66 +411,46 @@ public class TemplateCompiler {
     scriptsPerNode.put(attr, dynamicValue);
   }
 
-  private static final Pattern ILLEGAL_SUFFIX =
+  private static final Pattern IDENTIFIER_SEPARATOR = Pattern.compile("\\s+");
+  private static final Pattern FORBIDDEN_ID =
       Pattern.compile("__\\s*$");
-  private static final Pattern ILLEGAL_SUFFIXES =
-      Pattern.compile("(\\S*__)(\\s|$)");
+  private static final Pattern VALID_ID =
+      Pattern.compile("^[\\p{Alnum}$_:.\\-\\[\\]]+$");
 
-  /** True iff value does not end with __ */
-  private boolean checkIllegalSuffix(String value, FilePosition pos) {
-    if (!ILLEGAL_SUFFIX.matcher(value).find()) { return true; }
+  /** True iff value is not a forbidden id */
+  private boolean checkForbiddenId(String value, FilePosition pos) {
+    if (!FORBIDDEN_ID.matcher(value).find()) { return true; }
     mq.addMessage(
         IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, pos,
         MessagePart.Factory.valueOf(value));
     return false;
   }
 
-  /** True iff value does not have a word ending with __ */
-  private boolean checkIllegalSuffixes(String value, FilePosition pos) {
-    Matcher m = ILLEGAL_SUFFIXES.matcher(value);
-    if (!m.find()) { return true; }
-    // Narrow to the location of the bad word
-    FilePosition badPos = FilePosition.instance(
-        pos.source(), pos.startLineNo(),
-        pos.startCharInFile() + m.start(1),
-        pos.startCharInLine() + m.start(1),
-        m.end(1) - m.start(1));
+  /** True iff value does not contain a forbidden id */
+  private boolean checkForbiddenIdList(String value, FilePosition pos) {
+    boolean ok = true;
+    for (String ident : IDENTIFIER_SEPARATOR.split(value)) {
+      ok &= checkForbiddenId(ident, pos);
+    }
+    return ok;
+  }
+
+  /** True if value is a valid id */
+  private boolean checkValidId(String value, FilePosition pos) {
+    if (!checkForbiddenId(value, pos)) { return false; }
+    if ("".equals(value)) { return true; }
+    if (VALID_ID.matcher(value).find()) { return true; }
     mq.addMessage(
-        IhtmlMessageType.ILLEGAL_NAME, MessageLevel.WARNING, badPos,
+        IhtmlMessageType.ILLEGAL_NAME, pos,
         MessagePart.Factory.valueOf(value));
     return false;
   }
 
-  private static final Pattern IDENTIFIER_SEPARATOR = Pattern.compile("\\s+");
-  private static final Pattern ALLOWED_NAME = Pattern.compile(
-      "^[\\p{Alnum}$_:.\\-\\[\\]]+$");
-  /** True if value is a valid XML names outside the restricted namespace. */
-  private boolean checkRestrictedName(String value, FilePosition pos) {
-    assert "".equals(value) || !IDENTIFIER_SEPARATOR.matcher(value).find();
-    if (ALLOWED_NAME.matcher(value).find()) { return true; }
-    System.err.println("rejected ident `" + value + "`");
-    if (!"".equals(value)) {
-      mq.addMessage(
-          IhtmlMessageType.ILLEGAL_NAME, pos,
-          MessagePart.Factory.valueOf(value));
-    }
-    return false;
-  }
-  /**
-   * True iff value is a space separated group of XML names outside the
-   * restricted namespace.
-   */
-  private boolean checkRestrictedNames(String value, FilePosition pos) {
-    if ("".equals(value)) { return true; }
+  /** True iff value is a space-separated list of valid ids. */
+  private boolean checkValidIdList(String value, FilePosition pos) {
     boolean ok = true;
     for (String ident : IDENTIFIER_SEPARATOR.split(value)) {
-      if ("".equals(ident)) { continue; }
-      if (!ALLOWED_NAME.matcher(ident).matches()) {
-        mq.addMessage(
-            IhtmlMessageType.ILLEGAL_NAME, pos,
-            MessagePart.Factory.valueOf(ident));
-        ok = false;
-      }
+      ok &= checkValidId(ident, pos);
     }
     return ok;
   }
@@ -561,8 +547,8 @@ public class TemplateCompiler {
     inspect();
 
     // Emit safe HTML with JS which attaches dynamic attributes.
-    SafeHtmlMaker htmlMaker =
-        new SafeHtmlMaker(meta, mc, doc, scriptsPerNode, ihtmlRoots, handlers);
+    SafeHtmlMaker htmlMaker = new SafeHtmlMaker(
+        meta, mc, doc, scriptsPerNode, ihtmlRoots, handlers);
     Pair<Node, List<Block>> htmlAndJs = htmlMaker.make();
     Node html = htmlAndJs.a;
     List<Block> js = htmlAndJs.b;

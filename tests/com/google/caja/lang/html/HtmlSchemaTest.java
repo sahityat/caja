@@ -38,10 +38,9 @@ public class HtmlSchemaTest extends TestCase {
   }
 
   /** blacklist the whitelist. */
-  public void testSchema() throws Exception {
+  public final void testSchema() throws Exception {
     assertFalse(schema.isElementAllowed(id("script")));
     assertFalse(schema.isElementAllowed(id("style")));
-    assertFalse(schema.isElementAllowed(id("iframe")));
     // swapping innerHTML from an XMP or LISTING tag into another tag might
     // allow bad things to happen.
     assertFalse(schema.isElementAllowed(id("xmp")));
@@ -56,7 +55,7 @@ public class HtmlSchemaTest extends TestCase {
     assertTrue(schema.isElementAllowed(id("span")));
   }
 
-  public void testAttributeTypes() throws Exception {
+  public final void testAttributeTypes() throws Exception {
     assertEquals(HTML.Attribute.Type.STYLE,
                  schema.lookupAttribute(id("div"), id("style")).getType());
     assertEquals(HTML.Attribute.Type.SCRIPT,
@@ -67,7 +66,7 @@ public class HtmlSchemaTest extends TestCase {
                  schema.lookupAttribute(id("a"), id("title")).getType());
   }
 
-  public void testAttributeMimeTypes() throws Exception {
+  public final void testAttributeMimeTypes() throws Exception {
     assertEquals(
         "image/*",
         schema.lookupAttribute(id("img"), id("src")).getMimeTypes());
@@ -79,7 +78,7 @@ public class HtmlSchemaTest extends TestCase {
         schema.lookupAttribute(id("table"), id("cellpadding")).getMimeTypes());
   }
 
-  public void testAttributeCriteria() throws Exception {
+  public final void testAttributeCriteria() throws Exception {
     assertFalse(schema.lookupAttribute(id("a"), id("target"))
                 .getValueCriterion().accept("_top"));
     assertTrue(schema.lookupAttribute(id("a"), id("target"))
@@ -114,13 +113,13 @@ public class HtmlSchemaTest extends TestCase {
                 .getValueCriterion().accept("bogus"));
   }
 
-  public void testSafeAndDefaultValues() {
+  public final void testSafeAndDefaultValues() {
     HTML.Attribute tgt = schema.lookupAttribute(id("a"), id("target"));
     assertEquals("_blank", tgt.getSafeValue());
     assertEquals("_self", tgt.getDefaultValue());
   }
 
-  public void testAttributeList() {
+  public final void testAttributeList() {
     HTML.Element a = schema.lookupElement(id("a"));
     assertEquals(
         schema.lookupAttribute(id("A"), id("HREF")),

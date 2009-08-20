@@ -25,24 +25,24 @@ public class IllegalReferenceCheckRewriterTest extends RewriterTestCase {
   @Override
   public void setUp() throws Exception {
     super.setUp();
-    setRewriter(new IllegalReferenceCheckRewriter(true));
+    setRewriter(new IllegalReferenceCheckRewriter(mq, true));
   }
 
-  public void testIllegalRefs() throws Exception {
+  public final void testIllegalRefs() throws Exception {
     testIllegal("var x__;");
     testIllegal("function f__() { }");
     testIllegal("var x = function f__() { };");
     testIllegal("x__ = 3;");
   }
 
-  public void testLegalRefs() throws Exception {
+  public final void testLegalRefs() throws Exception {
     testLegal("var x;");
     testLegal("function f() { }");
     testLegal("var x = function f() { };");
     testLegal("x = 3;");
   }
 
-  public void testNullIdentifiers() throws Exception {
+  public final void testNullIdentifiers() throws Exception {
     testLegal("function () {}");
   }
 

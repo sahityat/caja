@@ -28,43 +28,40 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
    * Tests that "in" works as expected
    * @throws Exception
    */
-  public void testIn() throws Exception {
+  public final void testIn() throws Exception {
     assertConsistent(
         "('length' in {}) && " +
         "fail('readable property mistaken for existing property');");
     assertConsistent(
         "('length' in []) || " +
         "fail('arrays should have a length');");
-    
+
     assertConsistent(
         "('x' in { x: 1 }) || " +
         "fail('failed to find existing readable property');");
     assertConsistent(
         "('y' in { x: 1 }) && " +
         "fail('found nonexisting property');");
-    // TODO: valija doesn't throw type error
-    /*
     assertConsistent(
         "var flag = true;" +
         "try { 'length' in '123' }" +
         "catch (e) { flag = false; }" +
         "if (flag) { fail ('should throw TypeError'); }" +
         "true;");
-    */
   }
 
   /**
    * Tests that the length property whitelisting works on non-objects
    * @throws Exception
    */
-  public void testStringLength() throws Exception {
+  public final void testStringLength() throws Exception {
     assertConsistent("('123').length;");
   }
 
   /**
    * Tests that eval is uncallable.
    */
-  public void testEval() throws Exception {
+  public final void testEval() throws Exception {
     rewriteAndExecute(
         "var success=false;" +
         "try{eval('1');}catch(e){success=true;}" +
@@ -75,7 +72,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
    * Tests that arguments to functions are not mutable through the
    * arguments array.
    */
-  public void testMutableArguments() throws Exception {
+  public final void testMutableArguments() throws Exception {
     rewriteAndExecute(
         "cajita.log('___.args = ' + ___.args);",
         "function f(a) {" +
@@ -93,7 +90,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
   /**
    * Tests that the caller attribute is unreadable.
    */
-  public void testCaller() throws Exception {
+  public final void testCaller() throws Exception {
     rewriteAndExecute(
         "function f(x) {" +
         "  try {" +
@@ -108,7 +105,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
   /**
    * Tests that the callee attribute is unreadable.
    */
-  public void testCallee() throws Exception {
+  public final void testCallee() throws Exception {
     rewriteAndExecute(
         "function f(x) {" +
         "  try {" +
@@ -123,7 +120,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
   /**
    * Tests that arguments are immutable from another function's scope.
    */
-  public void testCrossScopeArguments() throws Exception {
+  public final void testCrossScopeArguments() throws Exception {
     rewriteAndExecute(
         "function f(a) {" +
           "g();" +
@@ -139,7 +136,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
   /**
    * Tests that exceptions are not visible outside of the catch block.
    */
-  public void testCatch() throws Exception {
+  public final void testCatch() throws Exception {
     try {
       rewriteAndExecute(
           "var e = 0;" +
@@ -154,7 +151,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
   /**
    * Tests that setTimeout is uncallable.
    */
-  public void testSetTimeout() throws Exception {
+  public final void testSetTimeout() throws Exception {
     rewriteAndExecute(
         "var success=false;try{setTimeout('1',10);}" +
         "catch(e){success=true;}" +
@@ -164,7 +161,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
   /**
    * Tests that Object.watch is uncallable.
    */
-  public void testObjectWatch() throws Exception {
+  public final void testObjectWatch() throws Exception {
     rewriteAndExecute(
         "var x={}; var success=false;" +
         "try{x.watch(y, function(){});}" +
@@ -172,7 +169,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
         "if(!success)fail('Object.watch is accessible');");
   }
 
-  public void testForIn() throws Exception {
+  public final void testForIn() throws Exception {
     // TODO(ihab.awad): Disabled until we figure out how to get a test fixture
     // that allows us to add stuff to IMPORTS___ before the test is run.
     if (false) {
@@ -229,14 +226,14 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
     }
   }
 
-  public void testFor() throws Exception {
+  public final void testFor() throws Exception {
     assertConsistent("var i; for (i = 0; i < 10; i++) {} i;");
     assertConsistent("for (var i = 0; i < 10; i++) {} i;");
     assertConsistent("for (var i = 0, j = 0; i < 10; i++) { j += 10; } j;");
     assertConsistent("for (var i = 0, j = 0; i < 10; i++, j += 10) { } j;");
   }
 
-  public void testMultiDeclaration() throws Exception {
+  public final void testMultiDeclaration() throws Exception {
     assertConsistent("var a = 3, b = 4, c = 5; a + b + c;");
     assertConsistent("var a, b; a = 3; b = 4; a + b;");
     assertConsistent(
@@ -247,7 +244,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
         + "f();");
   }
 
-  public void testCommonReformedGenerics() throws Exception {
+  public final void testCommonReformedGenerics() throws Exception {
     assertConsistent(
         "var x = [33];" +
         "x.foo = [].push;" +
@@ -283,7 +280,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
         "cajita.getOwnPropertyNames(x).sort();");
   }
 
-  public void testTypeofConsistent() throws Exception {
+  public final void testTypeofConsistent() throws Exception {
     assertConsistent("[ (typeof noSuchGlobal), (typeof 's')," +
                      "  (typeof 4)," +
                      "  (typeof null)," +
@@ -304,7 +301,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
    * The uncajoled branch of the tests below establish that the callbacks
    * work uncajoled when they are tamed as simple frozen functions.
    */
-  public void testCommonCallback() throws Exception {
+  public final void testCommonCallback() throws Exception {
     assertConsistent(
         "'abc'.replace('b', function() {return 'xy';});");
     assertConsistent(
@@ -338,7 +335,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
    * The uncajoled branch of the tests below establish that a null does cause
    * a privilege escalation for normal non-strict JavaScript.
    */
-  public void testNoPrivilegeEscalation() throws Exception {
+  public final void testNoPrivilegeEscalation() throws Exception {
     rewriteAndExecute("",
         "assertTrue([].valueOf.call(null) === cajita.USELESS);",
         "assertTrue([].valueOf.call(null) === this);");
@@ -360,7 +357,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
    * privilege escalation. Here, we test that this special case preserves
    * correct functionality.
    */
-  public void testTamedXo4aOkOnNull() throws Exception {
+  public final void testTamedXo4aOkOnNull() throws Exception {
     rewriteAndExecute("this.foo = 8;",
 
         "var x = cajita.beget(cajita.USELESS);" +
@@ -390,3 +387,7 @@ public abstract class CommonJsRewriterTestCase extends RewriterTestCase {
         "assertFalse(({bar: 7}).hasOwnProperty.bind(null)('bar'));");
   }
 }
+
+// Instructions for reviewers that appear at the end of codereview.appspot.
+// Please make all test methods final so that they cannot be unintentionally
+// overridden in subclasses.

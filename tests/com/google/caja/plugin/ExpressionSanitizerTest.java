@@ -46,7 +46,7 @@ public class ExpressionSanitizerTest extends CajaTestCase {
     meta = null;
   }
 
-  public void testBasicRewriting() throws Exception {
+  public final void testBasicRewriting() throws Exception {
     assertSanitize(
         "g[i];",
         "var g = ___.readImport(IMPORTS___, 'g');"
@@ -54,19 +54,19 @@ public class ExpressionSanitizerTest extends CajaTestCase {
         + "___.readPub(g, i);");
   }
 
-  public void testNoSpuriousRewriteErrorFound() throws Exception {
+  public final void testNoSpuriousRewriteErrorFound() throws Exception {
     newPassThruSanitizer().sanitize(
         ac(new Identifier(FilePosition.UNKNOWN, "x")));
     assertFalse(mq.hasMessageAtLevel(MessageLevel.FATAL_ERROR));
   }
 
-  public void testRewriteErrorIsDetected() throws Exception {
+  public final void testRewriteErrorIsDetected() throws Exception {
     newPassThruSanitizer().sanitize(
         ac(new Identifier(FilePosition.UNKNOWN, "x__")));
     assertTrue(mq.hasMessageAtLevel(MessageLevel.FATAL_ERROR));
   }
 
-  public void testNonAsciiIsDetected() throws Exception {
+  public final void testNonAsciiIsDetected() throws Exception {
     newPassThruSanitizer().sanitize(
         ac(new Identifier(FilePosition.UNKNOWN, "\u00e6")));
     assertTrue(mq.hasMessageAtLevel(MessageLevel.FATAL_ERROR));
@@ -75,17 +75,16 @@ public class ExpressionSanitizerTest extends CajaTestCase {
   private ExpressionSanitizerCaja newPassThruSanitizer() throws Exception {
     return new ExpressionSanitizerCaja(new TestBuildInfo(), mq, meta) {
       @Override
-      protected Rewriter newCajitaRewriter() {
-        return new Rewriter(true, true) {{
+      protected Rewriter newCajitaRewriter(MessageQueue mq) {
+        return new Rewriter(mq, true, true) {{
           addRule(new Rule() {
             @Override
             @RuleDescription(
                 name="passthru",
                 synopsis="Pass through input vacuously 'expanded'",
                 reason="Dummy rule for testing")
-                public ParseTreeNode fire(
-                    ParseTreeNode node, Scope scope, MessageQueue mq) {
-              return expandAll(node.clone(), scope, mq);
+                public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
+              return expandAll(node.clone(), scope);
             }
           });
         }};

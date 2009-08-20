@@ -45,7 +45,7 @@ import java.util.Map;
 public class InnocentCodeRewriter extends Rewriter {
   final public Rule[] innocentRules = {
 
-    new Rule () {
+    new Rule() {
       @Override
       @RuleDescription(
           name="module",
@@ -54,66 +54,67 @@ public class InnocentCodeRewriter extends Rewriter {
           matches="{@ss*;}",
           substitutes=(
               "@startStmts*;" +
-              "@refError?;" +
+              "@thisVar?;" +
               "@expanded*;"))
-      public ParseTreeNode fire(
-          ParseTreeNode node, Scope scope, MessageQueue mq) {
+      public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         if (node instanceof Block && scope == null) {
           Scope s2 = Scope.fromProgram((Block) node, mq);
           List<ParseTreeNode> expanded = new ArrayList<ParseTreeNode>();
           for (ParseTreeNode c : node.children()) {
-            expanded.add(expand(c, s2, mq));
+            expanded.add(expand(c, s2));
           }
 
-          // Checks to see if the block contains a free THIS
-          ParseTreeNode refError = null;
+          // If the program body has a free THIS, bind this___ to the global
+          // object.  This is consistent with ES5 strict.
+          ParseTreeNode thisVar = null;
           if (s2.hasFreeThis()) {
-            refError = QuasiBuilder.substV(
-                "if (this.___) { throw ReferenceError; }");
+            thisVar = QuasiBuilder.substV("var this___ = this;");
           }
 
           return substV(
               "startStmts", new ParseTreeNodeContainer(s2.getStartStatements()),
-              "refError", refError,
+              "thisVar", thisVar,
               "expanded", new ParseTreeNodeContainer(expanded));
         }
         return NONE;
       }
     },
 
-    new Rule () {
+    new Rule() {
       @Override
       @RuleDescription(
           name="functions",
           synopsis="",
           reason="",
-          matches="function @f? (@ps*) { @bs* }",
+          matches="function @f?(@ps*) { @bs* }",
           substitutes=(
-              "function @f? (@params*) {" +
+              "function @f?(@params*) {" +
               "  @startStmts*;" +
-              "  @refError?;" +
+              "  @thisVar?;" +
               "  @body*" +
               "}"))
-      public ParseTreeNode fire(
-        ParseTreeNode node, Scope scope, MessageQueue mq) {
+      public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         Map<String, ParseTreeNode> bindings = match(node);
         if (bindings != null) {
           Scope s2 = Scope.fromFunctionConstructor(
               scope, (FunctionConstructor) node);
-          ParseTreeNode params = expandAll(bindings.get("ps"), s2, mq);
-          ParseTreeNode body = expandAll(bindings.get("bs"), s2, mq);
+          ParseTreeNode params = expandAll(bindings.get("ps"), s2);
+          ParseTreeNode body = expandAll(bindings.get("bs"), s2);
 
-          // If the function has a free THIS, check what it binds to at runtime
-          ParseTreeNode refError = null;
+          // Checks to see if the block contains a free THIS and emulate ES5
+          // strict mode behavior where it is undefined if called without an
+          // object to the left.  We cannot exactly emulate the ES5 strict
+          // behavior without a much heavierweight rewriting as described in
+          // issue 1019, so we always void out the global object.
+          ParseTreeNode thisVar = null;
           if (s2.hasFreeThis()) {
-            refError = QuasiBuilder.substV(
-                "if (this.___) { throw ReferenceError; }");
+            thisVar = QuasiBuilder.substV(
+                "var this___ = this && this.___ ? void 0 : this;");
           }
 
           return substV(
-              "refError", refError,
+              "thisVar", thisVar,
               "f", bindings.get("f"),
-              "ps", bindings.get("params"),
               "params", params,
               "startStmts", new ParseTreeNodeContainer(s2.getStartStatements()),
               "body", body);
@@ -122,7 +123,22 @@ public class InnocentCodeRewriter extends Rewriter {
       }
     },
 
-    new Rule () {
+    new Rule() {
+      @Override
+      @RuleDescription(
+          name="this",
+          synopsis="Replaces references to 'this' with references to this___",
+          reason=("So that we can check whether this points to the global scope"
+                  + " and substitute a reasonable value."),
+          matches="this",
+          substitutes="this___")
+      public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
+        if (match(node) != null) { return substV(); }
+        return NONE;
+      }
+    },
+
+    new Rule() {
       @Override
       @RuleDescription(
           name="foreach",
@@ -137,7 +153,7 @@ public class InnocentCodeRewriter extends Rewriter {
             "  @kAssignment;" +
             "  @ss;" +
             "}"))
-      public ParseTreeNode fire(ParseTreeNode node, Scope scope, MessageQueue mq) {
+      public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         Map<String, ParseTreeNode> bindings = makeBindings();
 
         if (QuasiBuilder.match("for (var @k in @o) @ss;", node, bindings)) {
@@ -154,7 +170,7 @@ public class InnocentCodeRewriter extends Rewriter {
             "@k = @kTempRef;",
             "k", bindings.get("k"),
             "kTempRef", new Reference(kTemp));
-        kAssignment = expandAll(kAssignment, scope, mq);
+        kAssignment = expandAll(kAssignment, scope);
         kAssignment = newExprStmt((Expression) kAssignment);
 
         return substV(
@@ -162,24 +178,24 @@ public class InnocentCodeRewriter extends Rewriter {
             "kTempRef", new Reference(kTemp),
             "o", bindings.get("o"),
             "kAssignment", kAssignment,
-            "ss", expandAll(bindings.get("ss"), scope, mq));
+            "ss", expandAll(bindings.get("ss"), scope));
       }
     },
 
-    new Rule () {
+    new Rule() {
       @Override
       @RuleDescription(
           name="recurse",
           synopsis="Automatically recurse into some structures",
           reason="")
-      public ParseTreeNode fire(ParseTreeNode node, Scope scope, MessageQueue mq) {
-        return expandAll(node, scope, mq);
+      public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
+        return expandAll(node, scope);
       }
     }
   };
 
-  public InnocentCodeRewriter(boolean logging) {
-    super(false, logging);
+  public InnocentCodeRewriter(MessageQueue mq, boolean logging) {
+    super(mq, false, logging);
     addRules(innocentRules);
   }
 }

@@ -47,7 +47,6 @@
  * TODO(ihab.awad): Come up with a uniform convention (and helper functions,
  * etc.) for checking that a user-supplied callback is a valid Cajita function
  * or Valija Disfunction.
-
  *
  * @author mikesamuel@gmail.com
  * @requires console, document, window
@@ -416,8 +415,12 @@ var attachDocumentStub = (function () {
   var VALID_ID_PATTERN = new RegExp(
       '^[' + VALID_ID_CHAR + ']+$');
 
-  var VALID_IDLIST_PATTERN = new RegExp(
+  var VALID_ID_LIST_PATTERN = new RegExp(
       '^[' + XML_SPACE + VALID_ID_CHAR + ']*$');
+
+  var FORBIDDEN_ID_PATTERN = new RegExp('__\\s*$');
+
+  var FORBIDDEN_ID_LIST_PATTERN = new RegExp('__(?:\\s|$)');
 
   var JS_SPACE = '\t\n\r ';
   // An identifier that does not end with __.
@@ -434,11 +437,13 @@ var attachDocumentStub = (function () {
       + '[' + JS_SPACE + ']*(?:;?[' + JS_SPACE + ']*)$');
 
   function isValidId(s) {
-    return VALID_ID_PATTERN.test(s);
+    return !FORBIDDEN_ID_PATTERN.test(s)
+        && VALID_ID_PATTERN.test(s);
   }
 
   function isValidIdList(s) {
-    return VALID_IDLIST_PATTERN.test(s);
+    return !FORBIDDEN_ID_LIST_PATTERN.test(s)
+        && VALID_ID_LIST_PATTERN.test(s);
   }
 
   // Trim whitespace from the beginning and end of a CSS string.
@@ -775,14 +780,35 @@ var attachDocumentStub = (function () {
 
     /**
      * If str ends with suffix, return the part of str before suffix.
-     * Otherwise return ''.
+     * Otherwise return fail.
      */
-    function unsuffix(str, suffix) {
+    function unsuffix(str, suffix, fail) {
+      if (typeof str !== 'string') return fail;
       var n = str.length - suffix.length;
       if (0 < n && str.substring(n) === suffix) {
         return str.substring(0, n);
       } else {
-        return '';
+        return fail;
+      }
+    }
+
+    var ID_LIST_PARTS_PATTERN = new RegExp(
+      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
+
+    /** Convert a real attribute value to the value seen in a sandbox. */
+    function virtualizeAttributeValue(attrType, realValue) {
+      switch (attrType) {
+        case html4.atype.GLOBAL_NAME:
+        case html4.atype.ID:
+        case html4.atype.IDREF:
+          return unsuffix(realValue, idSuffix, null);
+        case html4.atype.IDREFS:
+          return realValue.replace(ID_LIST_PARTS_PATTERN,
+              function(_, id, spaces) {
+                return unsuffix(id, idSuffix, '') + spaces;
+              });
+        default:
+          return realValue;
       }
     }
 
@@ -799,35 +825,14 @@ var attachDocumentStub = (function () {
         startTag: function (tagName, attribs, out) {
           out.push('<', tagName);
           for (var i = 0; i < attribs.length; i += 2) {
-            var attribName = attribs[i];
-            var attribKey;
-            var atype;
-            if ((attribKey = tagName + ':' + attribName,
-                html4.ATTRIBS.hasOwnProperty(attribKey))
-                || (attribKey = '*:' + attribName,
-                    html4.ATTRIBS.hasOwnProperty(attribKey))) {
-              atype = html4.ATTRIBS[attribKey];
-            } else {
-              return;
-            }
+            var aname = attribs[i];
+            var atype = getAttributeType(tagName, aname);
             var value = attribs[i + 1];
-            // TODO(felix8a): consolidate the un-rewriteAttribute code.
-            switch (atype) {
-              case html4.atype.ID:
-              case html4.atype.IDREF:
-                value = unsuffix(value, idSuffix);
-                if (value === '') continue;
-                break;
-              case html4.atype.IDREFS:
-                value = value.replace(idRefsTails,
-                    function(_, id, spaces) {
-                      id = unsuffix(id, idSuffix);
-                      return id + spaces;
-                    });
-                break;
-            }
-            if (value !== null) {
-              out.push(' ', attribName, '="', html.escapeAttrib(value), '"');
+            if (atype !== void 0) {
+              value = virtualizeAttributeValue(atype, value);
+              if (typeof value === 'string') {
+                out.push(' ', aname, '="', html.escapeAttrib(value), '"');
+              }
             }
           }
           out.push('>');
@@ -837,11 +842,6 @@ var attachDocumentStub = (function () {
         rcdata: function (text, out) { out.push(text); },
         cdata: function (text, out) { out.push(text); }
       });
-
-    var illegalSuffix = /__\s*$/;
-    var illegalSuffixes = /__(?:\s|$)/;
-    var idRefsTails = new RegExp(
-      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
 
     /**
      * Returns a normalized attribute value, or null if the attribute should
@@ -860,8 +860,9 @@ var attachDocumentStub = (function () {
     function rewriteAttribute(tagName, attribName, type, value) {
       switch (type) {
         case html4.atype.CLASSES:
+          // note, className is arbitrary CDATA.
           value = String(value);
-          if (!illegalSuffixes.test(value)) {
+          if (!FORBIDDEN_ID_LIST_PATTERN.test(value)) {
             return value;
           }
           return null;
@@ -869,20 +870,20 @@ var attachDocumentStub = (function () {
         case html4.atype.ID:
         case html4.atype.IDREF:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isValidId(value)) {
+          if (value && isValidId(value)) {
             return value + idSuffix;
           }
           return null;
         case html4.atype.IDREFS:
           value = String(value);
-          if (value && !illegalSuffixes.test(value) && isValidIdList(value)) {
-            return value.replace(idRefsTails,
+          if (value && isValidIdList(value)) {
+            return value.replace(ID_LIST_PARTS_PATTERN,
                 function(_, id, spaces) { return id + idSuffix + spaces; });
           }
           return null;
         case html4.atype.LOCAL_NAME:
           value = String(value);
-          if (value && !illegalSuffix.test(value) && isValidId(value)) {
+          if (value && isValidId(value)) {
             return value;
           }
           return null;
@@ -965,7 +966,6 @@ var attachDocumentStub = (function () {
       if (tamed !== void 0) {
         return tamed;
       }
-
       switch (node.nodeType) {
         case 1:  // Element
           var tagName = node.tagName.toLowerCase();
@@ -983,19 +983,27 @@ var attachDocumentStub = (function () {
             case 'input':
               tamed = new TameInputElement(node, editable);
               break;
+            case 'iframe':
+              tamed = new TameIFrameElement(node, editable);
+              break;
             case 'img':
               tamed = new TameImageElement(node, editable);
+              break;
+            case 'label':
+              tamed = new TameLabelElement(node, editable);
               break;
             case 'script':
               tamed = new TameScriptElement(node, editable);
               break;
             case 'td':
-            case 'tr':
             case 'thead':
             case 'tfoot':
             case 'tbody':
             case 'th':
               tamed = new TameTableCompElement(node, editable);
+              break;
+            case 'tr':
+              tamed = new TameTableRowElement(node, editable);
               break;
             case 'table':
               tamed = new TameTableElement(node, editable);
@@ -1025,6 +1033,9 @@ var attachDocumentStub = (function () {
         case 8:  // Comment
           tamed = new TameCommentNode(node, editable);
           break;
+        case 11: // Document Fragment
+          tamed = new TameBackedNode(node, editable, editable);
+          break;
         default:
           tamed = new TameOpaqueNode(node, editable);
           break;
@@ -1040,14 +1051,18 @@ var attachDocumentStub = (function () {
       if (node === null || node === void 0) { return null; }
       // catch errors because node might be from a different domain
       try {
+        var docElem = node.ownerDocument.documentElement;
         for (var ancestor = node; ancestor; ancestor = ancestor.parentNode) {
           // TODO(mikesamuel): replace with cursors so that subtrees are
           // delegable.
           // TODO: handle multiple classes.
           if (idClass === ancestor.className) {
             return tameNodeCtor(node, editable);
+          } else if (ancestor === docElem) {
+            return null;
           }
         }
+        return tameNodeCtor(node, editable);
       } catch (e) {}
       return null;
     }
@@ -1123,7 +1138,7 @@ var attachDocumentStub = (function () {
       // Filter out classnames in the restricted namespace.
       for (var i = classes ? classes.length : 0; --i >= 0;) {
         var classi = classes[i];
-        if (illegalSuffix.test(classi)) {
+        if (FORBIDDEN_ID_PATTERN.test(classi)) {
           classes[i] = classes[classes.length - 1];
           --classes.length;
         }
@@ -1203,6 +1218,7 @@ var attachDocumentStub = (function () {
     var INVALID_SUFFIX = "Property names may not end in '__'.";
     var UNSAFE_TAGNAME = "Unsafe tag name.";
     var UNKNOWN_TAGNAME = "Unknown tag name.";
+    var INDEX_SIZE_ERROR = "Index size error.";
 
     // Implementation of EventTarget::addEventListener
     function tameAddEventListener(name, listener, useCapture) {
@@ -1389,8 +1405,7 @@ var attachDocumentStub = (function () {
         }
         return tameDocument.getBody();
       }
-      return tameRelatedNode(
-          this.node___.parentNode, this.editable___, defaultTameNode);
+      return tameRelatedNode(parent, this.editable___, defaultTameNode);
     };
     TameBackedNode.prototype.getElementsByTagName = function (tagName) {
       return tameGetElementsByTagName(
@@ -1898,8 +1913,10 @@ var attachDocumentStub = (function () {
     TameBackedAttributeNode.prototype.getNodeName =
     TameBackedAttributeNode.prototype.getName =
         function () { return String(this.node___.name); };
-    TameBackedAttributeNode.prototype.getSpecified =
-        function () { return !!this.node___.specified; };
+    TameBackedAttributeNode.prototype.getSpecified = function () {
+      return defaultTameNode(this.ownerElement___, this.editable___)
+          .hasAttribute(this.getName());
+    };
     TameBackedAttributeNode.prototype.getNodeValue =
     TameBackedAttributeNode.prototype.getValue = function () {
       return defaultTameNode(this.ownerElement___, this.editable___)
@@ -1976,6 +1993,14 @@ var attachDocumentStub = (function () {
       registerElementScriptAttributeHandlers(this);
     }
     nodeClasses.Element = inertCtor(TameElement, TameBackedNode, 'HTMLElement');
+    TameElement.prototype.blur = function () {
+      this.node___.blur();
+    };
+    TameElement.prototype.focus = function () {
+      if (imports.isProcessingEvent___) {
+        this.node___.focus();
+      }
+    };
     TameElement.prototype.getId = function () {
       return this.getAttribute('id') || '';
     };
@@ -1995,36 +2020,14 @@ var attachDocumentStub = (function () {
       }
       var value = bridal.getAttribute(this.node___, attribName);
       if ('string' !== typeof value) { return value; }
-      switch (atype) {
-        case html4.atype.GLOBAL_NAME:
-        case html4.atype.ID:
-        case html4.atype.IDREF:
-          if (!value) { return null; }
-          var n = idSuffix.length;
-          var len = value.length;
-          var end = len - n;
-          if (end > 0 && idSuffix === value.substring(end, len)) {
-            return value.substring(0, end);
-          }
-          return null;
-        case html4.atype.IDREFS:
-          if (!value) { return null; }
-          value = value.replace(idRefsTails,
-              function(_, id, spaces) {
-                id = unsuffix(id, idSuffix);
-                return id + spaces;
-              });
-          return value;
-        default:
-          if ('' === value) {
-            // IE creates attribute nodes for any attribute in the HTML schema
-            // so even when they are deleted, there will be a value, usually
-            // the empty string.
-            var attr = bridal.getAttributeNode(this.node___, attribName);
-            if (attr && !attr.specified) { return null; }
-          }
-          return value;
+      if ('' === value) {
+        // IE creates attribute nodes for any attribute in the HTML schema
+        // so even when they are deleted, there will be a value, usually
+        // the empty string.
+        var attr = bridal.getAttributeNode(this.node___, attribName);
+        if (attr && !attr.specified) { return null; }
       }
+      return virtualizeAttributeValue(atype, value);
     };
     TameElement.prototype.getAttributeNode = function (name) {
       var hostDomNode = bridal.getAttributeNode(this.node___, name);
@@ -2189,6 +2192,7 @@ var attachDocumentStub = (function () {
     ___.all2(
        ___.grantTypedMethod, TameElement.prototype,
        ['addEventListener', 'removeEventListener',
+        'blur', 'focus',
         'getAttribute', 'setAttribute',
         'removeAttribute', 'hasAttribute',
         'getAttributeNode',
@@ -2202,9 +2206,6 @@ var attachDocumentStub = (function () {
       classUtils.exportFields(this, ['href']);
     }
     inertCtor(TameAElement, TameElement, 'HTMLAnchorElement');
-    TameAElement.prototype.focus = function () {
-      this.node___.focus();
-    };
     TameAElement.prototype.getHref = function () {
       return this.node___.href;
     };
@@ -2213,7 +2214,7 @@ var attachDocumentStub = (function () {
       return href;
     };
     ___.all2(___.grantTypedMethod, TameAElement.prototype,
-             ['getHref', 'setHref', 'focus']);
+             ['getHref', 'setHref']);
 
     // http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-40002357
     function TameFormElement(node, editable) {
@@ -2315,12 +2316,6 @@ var attachDocumentStub = (function () {
       this.node___.defaultValue = (
           newValue === null || newValue === void 0 ? '' : '' + newValue);
       return newValue;
-    };
-    TameInputElement.prototype.focus = function () {
-      this.node___.focus();
-    };
-    TameInputElement.prototype.blur = function () {
-      this.node___.blur();
     };
     TameInputElement.prototype.select = function () {
       this.node___.select();
@@ -2473,8 +2468,7 @@ var attachDocumentStub = (function () {
       return newValue;
     };
     ___.all2(___.grantTypedMethod, TameInputElement.prototype,
-             ['getValue', 'setValue', 'focus', 'blur',
-               'getForm', 'getType', 'select']);
+             ['getValue', 'setValue', 'getForm', 'getType', 'select']);
 
 
     function TameImageElement(node, editable) {
@@ -2500,6 +2494,19 @@ var attachDocumentStub = (function () {
     ___.all2(___.grantTypedMethod, TameImageElement.prototype,
              ['getSrc', 'setSrc', 'getAlt', 'setAlt']);
 
+    function TameLabelElement(node, editable) {
+      TameElement.call(this, node, editable, editable);
+      classUtils.exportFields(this, ['htmlFor']);
+    }
+    inertCtor(TameLabelElement, TameElement, 'HTMLLabelElement');
+    TameLabelElement.prototype.getHtmlFor = function () {
+      return this.getAttribute('for');
+    };
+    TameLabelElement.prototype.setHtmlFor = function (id) {
+      this.setAttribute('for', id);
+      return id;
+    };
+
     /**
      * A script element wrapper that allows setting of a src that has been
      * rewritten by a URL policy, but not modifying of textual content.
@@ -2518,6 +2525,90 @@ var attachDocumentStub = (function () {
       this.setAttribute('src', src);
       return src;
     };
+
+    function TameIFrameElement(node, editable) {
+      // Make the child list immutable so that text content can't be added
+      // or removed.
+      TameElement.call(this, node, editable, false);
+      classUtils.exportFields(
+          this,
+          ['align', 'frameBorder', 'height', 'width']);
+    }
+    inertCtor(TameIFrameElement, TameElement, "HTMLIFrameElement");
+    TameIFrameElement.prototype.getAlign = function () {
+      return this.node___.align;
+    };
+    TameIFrameElement.prototype.setAlign = function (alignment) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      alignment = String(alignment);
+      if (alignment === 'left' || 
+          alignment === 'right' || 
+          alignment === 'center') {
+        this.node___.align = alignment;
+      }
+    };
+    TameIFrameElement.prototype.getAttribute = function(attr) {
+      attrLc = String(attr).toLowerCase();
+      if (attrLc !== 'name' && attrLc !== 'src') {
+        return TameElement.prototype.getAttribute.call(this, attr);
+      }
+      return null;
+    };
+    TameIFrameElement.prototype.setAttribute = function(attr, value) {
+      attrLc = String(attr).toLowerCase();
+      // The 'name' and 'src' attributes are whitelisted for all tags in
+      // html4-attributes-whitelist.json, since they're needed on tags
+      // like <img>.  Because there's currently no way to filter attributes
+      // based on the tag, we have to blacklist these two here.
+      if (attrLc !== 'name' && attrLc !== 'src') {
+        return TameElement.prototype.setAttribute.call(this, attr, value);
+      }
+      cajita.log('Cannot set the [' + nameLc + '] attribute of an iframe.');
+      return value;
+    };
+    TameIFrameElement.prototype.getFrameBorder = function () {
+      return this.node___.frameBorder;
+    };
+    TameIFrameElement.prototype.setFrameBorder = function (border) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      border = String(border).toLowerCase();
+      if (border === '0' || border === '1' || 
+          border === 'no' || border === 'yes') {
+        this.node___.frameBorder = border;
+      }
+    };
+    TameIFrameElement.prototype.getHeight = function () {
+      return this.node___.height;
+    };
+    TameIFrameElement.prototype.setHeight = function (height) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      this.node___.height = +height;
+    };
+    TameIFrameElement.prototype.getWidth = function () {
+      return this.node___.width;
+    };
+    TameIFrameElement.prototype.setWidth = function (width) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      this.node___.width = +width;
+    };
+    TameIFrameElement.prototype.handleRead___ = function (name) {
+      nameLc = String(name).toLowerCase();
+      if (nameLc !== 'src' && nameLc !== 'name') {
+        return TameElement.prototype.handleRead___.call(this, name);
+      }
+      return undefined;
+    };
+    TameIFrameElement.prototype.handleSet___ = function (name, value) {
+      nameLc = String(name).toLowerCase();
+      if (nameLc !== 'src' && nameLc !== 'name') {
+        return TameElement.prototype.handleSet___.call(this, name, value);
+      }
+      cajita.log('Cannot set the [' + nameLc + '] property of an iframe.');
+      return value;
+    };
+    ___.all2(___.grantTypedMethod, TameIFrameElement.prototype,
+             ['getAttribute', 'setAttribute']);
+
 
 
     function TameTableCompElement(node, editable) {
@@ -2582,6 +2673,30 @@ var attachDocumentStub = (function () {
       return newValue;
     };
 
+    function requireIntIn(idx, min, max) {
+      if (idx !== (idx | 0) || idx < min || idx > max) {
+        throw new Error(INDEX_SIZE_ERROR);
+      }
+    }
+
+    function TameTableRowElement(node, editable) {
+      TameTableCompElement.call(this, node, editable);
+    }
+    inertCtor(TameTableRowElement, TameTableCompElement, 'HTMLTableRowElement');
+    TameTableRowElement.prototype.insertCell = function (index) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      requireIntIn(index, -1, this.node___.cells.length);
+      return defaultTameNode(
+          this.node___.insertCell(index), 
+          this.editable___);
+    };
+    TameTableRowElement.prototype.deleteCell = function (index) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      requireIntIn(index, -1, this.node___.cells.length);
+      this.node___.deleteCell(index);
+    };
+    ___.all2(___.grantTypedMethod, TameTableRowElement.prototype,
+             ['insertCell', 'deleteCell']);
 
     function TameTableElement(node, editable) {
       TameTableCompElement.call(this, node, editable);
@@ -2614,8 +2729,28 @@ var attachDocumentStub = (function () {
       if (!this.editable___) { throw new Error(NOT_EDITABLE); }
       this.node___.deleteTFoot();
     };
+    TameTableElement.prototype.createCaption = function () {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      return defaultTameNode(this.node___.createCaption(), this.editable___);
+    };
+    TameTableElement.prototype.deleteCaption = function () {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      this.node___.deleteCaption();
+    };
+    TameTableElement.prototype.insertRow = function (index) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      requireIntIn(index, -1, this.node___.rows.length);
+      return defaultTameNode(this.node___.insertRow(index), this.editable___);
+    };
+    TameTableElement.prototype.deleteRow = function (index) {
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      requireIntIn(index, -1, this.node___.rows.length);
+      this.node___.deleteRow(index);
+    };
+    
     ___.all2(___.grantTypedMethod, TameTableElement.prototype,
-             ['createTHead', 'deleteTHead','createTFoot', 'deleteTFoot']);
+             ['createTHead', 'deleteTHead','createTFoot', 'deleteTFoot',
+              'createCaption', 'deleteCaption', 'insertRow', 'deleteRow']);
 
     function tameEvent(event) {
       if (event.tamed___) { return event.tamed___; }
@@ -3004,11 +3139,11 @@ var attachDocumentStub = (function () {
               name, listener, useCapture);
         };
     TameHTMLDocument.prototype.createComment = function (text) {
-      return new TameCommentNode(this.doc___.createComment(" "), true);
+      return defaultTameNode(this.doc___.createComment(" "), true);
     };
     TameHTMLDocument.prototype.createDocumentFragment = function () {
-      return new TameBackedNode(this.doc___.createDocumentFragment(),
-                                this.editable___);
+      if (!this.editable___) { throw new Error(NOT_EDITABLE); }
+      return defaultTameNode(this.doc___.createDocumentFragment(), true);
     };
     TameHTMLDocument.prototype.createElement = function (tagName) {
       if (!this.editable___) { throw new Error(NOT_EDITABLE); }
@@ -3641,18 +3776,14 @@ var attachDocumentStub = (function () {
         get: function () { return tameDocument.body___.scrollWidth; }
       }
     }, ___.markFuncFreeze(function (propertyName, def) {
-      var setter = def.set || propertyOnlyHasGetter;
-      // TODO(mikesamuel): define on prototype.
-      ___.useGetHandler(tameWindow, propertyName, def.get);
-      ___.useSetHandler(tameWindow, propertyName, setter);
-      ___.useGetHandler(tameDefaultView, propertyName, def.get);
-      ___.useSetHandler(tameDefaultView, propertyName, setter);
-      var tameBody = tameDocument.getBody();
-      ___.useGetHandler(tameBody, propertyName, def.get);
-      ___.useSetHandler(tameBody, propertyName, setter);
-      var tameDocEl = tameDocument.getDocumentElement();
-      ___.useGetHandler(tameDocEl, propertyName, def.get);
-      ___.useSetHandler(tameDocEl, propertyName, setter);
+      var views = [tameWindow, tameDefaultView, tameDocument.getBody(),
+                   tameDocument.getDocumentElement()];
+      var setter = def.set || propertyOnlyHasGetter, getter = def.get;
+      for (var i = views.length; --i >= 0;) {
+        var view = views[i];
+        ___.useGetHandler(view, propertyName, getter);
+        ___.useSetHandler(view, propertyName, setter);
+      }
     }));
 
     cajita.forOwnKeys({
@@ -3793,10 +3924,11 @@ function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   if (___.startCallerStack) { ___.startCallerStack(); }
   imports.isProcessingEvent___ = true;
   try {
-    var target = imports.tameNode___(thisNode, true);
+    var node = imports.tameNode___(thisNode, true);
     return ___.callPub(
-        handler, 'call',
-        [target, imports.tameEvent___(event), target]);
+        handler, 
+        'call',
+        [ node, imports.tameEvent___(event), node ]);
   } catch (ex) {
     if (ex && ex.cajitaStack___ && 'undefined' !== (typeof console)) {
       console.error('Event dispatch %s: %s',
