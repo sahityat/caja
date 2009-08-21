@@ -62,10 +62,10 @@ public class JsPrettyPrinterTest extends CajaTestCase {
     assertRendered(
         "{\n"
         + "  foo({\n"
-        + "        'x': 1,\n"
-        + "        'y': bar({ 'w': 4 }),\n"
-        + "        'z': 3\n"
-        + "      });\n"
+        + "      'x': 1,\n"
+        + "      'y': bar({ 'w': 4 }),\n"
+        + "      'z': 3\n"
+        + "    });\n"
         + "}",
         "foo({ x: 1, y: bar({ w: 4 }), z: 3 });");
   }
@@ -116,9 +116,9 @@ public class JsPrettyPrinterTest extends CajaTestCase {
         + "     'b': {\n"
         + "       'c': [{ }],\n"
         + "       'd': [{\n"
-        + "               'e': null,\n"
-        + "               'f': 'foo'\n"
-        + "             }, null ]\n"
+        + "           'e': null,\n"
+        + "           'f': 'foo'\n"
+        + "         }, null ]\n"
         + "     }\n"
         + "   });\n"
         + "}",
@@ -146,7 +146,7 @@ public class JsPrettyPrinterTest extends CajaTestCase {
         + "/* Beginning */\n"
         + "var baz;\n"
         + "a+// Line comment\n"
-        + "    b;",
+        + "  b;",
 
         ""
         + "var x = foo;  /* end of line */\n"
@@ -240,23 +240,23 @@ public class JsPrettyPrinterTest extends CajaTestCase {
 
   public final void testIndentationAfterParens2() throws Exception {
     assertTokens("longObjectInstance.reallyLongMethodName(a, b, c,\n" +
-                 "                                        d);",
+                 "  d);",
                  "longObjectInstance", ".", "reallyLongMethodName", "(",
                  "a", ",", "b", ",", "c", ",", "\n", "d", ")", ";");
   }
 
   public final void testIndentationAfterParens3() throws Exception {
     assertTokens("longObjectInstance.reallyLongMethodName(\n" +
-                 "    a, b, c, d);",
+                 "  a, b, c, d);",
                  "longObjectInstance", ".", "reallyLongMethodName", "(",
                  "\n", "a", ",", "b", ",", "c", ",", "d", ")", ";");
   }
 
   public final void testIndentationAfterParens4() throws Exception {
     assertTokens("var x = ({\n" +
-                 "           'fooBar': [\n" +
-                 "               0, 1, 2, ]\n" +
-                 "         });",
+                 "    'fooBar': [\n" +
+                 "      0, 1, 2, ]\n" +
+                 "  });",
                  "var", "x", "=", "(", "{", "'fooBar'", ":", "[",
                  "\n", "0", ",", "1", ",", "2", ",", "]", "}", ")", ";");
   }

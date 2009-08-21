@@ -216,7 +216,7 @@ public class CajolingServiceTest extends CajaTestCase {
                     moduleEnvelope,
                     "<script src=bar.js></script><p>Hello, World!</p>"),
                 "application/xml");
-    String indent = "                 ";
+    String indent = "    ";
     assertEquals(
         String.format(
             moduleEnvelope,
@@ -233,8 +233,8 @@ public class CajolingServiceTest extends CajaTestCase {
             + indent + "      }\n"
             + indent + "    } catch (ex___) {\n"
             + indent + "      ___.getNewModuleHandler()"
-                               + ".handleUncaughtException(ex___,\n"
-            + indent + "          onerror, 'bar.js', '1');\n"
+                               + ".handleUncaughtException(ex___, onerror,\n"
+            + indent + "        'bar.js', '1');\n"
             + indent + "    }\n"
             + indent + "    return moduleResult___;\n"
             + indent + "  },\n"
@@ -247,7 +247,7 @@ public class CajolingServiceTest extends CajaTestCase {
   }
 
   private static String valijaModule(String... lines) {
-    String indent = "                 ";
+    String indent = "    ";
     String prefix = (
         ""
         + "{\n"
@@ -255,19 +255,19 @@ public class CajolingServiceTest extends CajaTestCase {
         + indent + "  'instantiate': function (___, IMPORTS___) {\n"
         + indent + "    var moduleResult___ = ___.NO_RESULT;\n"
         + indent + "    var $v = ___.readImport(IMPORTS___, '$v', {\n"
-        + indent + "          'getOuters': {\n"
-        + indent + "            '()': { }\n"
-        + indent + "          },\n"
-        + indent + "          'initOuter': {\n"
-        + indent + "            '()': { }\n"
-        + indent + "          },\n"
-        + indent + "          'cf': {\n"
-        + indent + "            '()': { }\n"
-        + indent + "          },\n"
-        + indent + "          'ro': {\n"
-        + indent + "            '()': { }\n"
-        + indent + "          }\n"
-        + indent + "        });\n"
+        + indent + "        'getOuters': {\n"
+        + indent + "          '()': { }\n"
+        + indent + "        },\n"
+        + indent + "        'initOuter': {\n"
+        + indent + "          '()': { }\n"
+        + indent + "        },\n"
+        + indent + "        'cf': {\n"
+        + indent + "          '()': { }\n"
+        + indent + "        },\n"
+        + indent + "        'ro': {\n"
+        + indent + "          '()': { }\n"
+        + indent + "        }\n"
+        + indent + "      });\n"
         + indent + "    var $dis = $v.getOuters();\n"
         + indent + "    $v.initOuter('onerror');\n"
         );
@@ -284,7 +284,7 @@ public class CajolingServiceTest extends CajaTestCase {
     StringBuilder sb = new StringBuilder();
     sb.append(prefix);
     for (String line : lines) {
-      sb.append("                     ").append(line).append('\n');
+      sb.append(indent).append("    ").append(line).append('\n');
     }
     sb.append(suffix);
     return sb.toString();
