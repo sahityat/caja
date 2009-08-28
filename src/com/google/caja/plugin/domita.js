@@ -1047,14 +1047,11 @@ var attachDocumentStub = (function () {
 
     function tameRelatedNode(node, editable, tameNodeCtor) {
       if (node === null || node === void 0) { return null; }
-      // catch errors because node might be from a different domain
+      // Catch errors because node might be from a different domain.
       try {
         var docElem = node.ownerDocument.documentElement;
         for (var ancestor = node; ancestor; ancestor = ancestor.parentNode) {
-          // TODO(mikesamuel): replace with cursors so that subtrees are
-          // delegable.
-          // TODO: handle multiple classes.
-          if (idClass === ancestor.className) {
+          if (idClassPattern.test(ancestor.className)) {
             return tameNodeCtor(node, editable);
           } else if (ancestor === docElem) {
             return null;
@@ -1219,7 +1216,7 @@ var attachDocumentStub = (function () {
       // Filter out classnames in the restricted namespace.
       if (classes) {
         for (var i = classes.length; --i >= 0;) {
-        var classi = classes[i];
+          var classi = classes[i];
           if (illegalSuffix.test(classi) || !isXmlNmTokens(classi)) {
             classes[i] = classes[classes.length - 1];
             --classes.length;
@@ -2703,14 +2700,14 @@ var attachDocumentStub = (function () {
       this.node___.width = +width;
     };
     TameIFrameElement.prototype.handleRead___ = function (name) {
-      nameLc = String(name).toLowerCase();
+      var nameLc = String(name).toLowerCase();
       if (nameLc !== 'src' && nameLc !== 'name') {
         return TameElement.prototype.handleRead___.call(this, name);
       }
       return undefined;
     };
     TameIFrameElement.prototype.handleSet___ = function (name, value) {
-      nameLc = String(name).toLowerCase();
+      var nameLc = String(name).toLowerCase();
       if (nameLc !== 'src' && nameLc !== 'name') {
         return TameElement.prototype.handleSet___.call(this, name, value);
       }
@@ -2726,8 +2723,8 @@ var attachDocumentStub = (function () {
       TameElement.call(this, node, editable, editable);
       classUtils.exportFields(
           this,
-          ['colSpan','cells','rowSpan','rows','rowIndex','align',
-           'vAlign','nowrap','sectionRowIndex']);
+          ['colSpan', 'cells', 'rowSpan', 'rows', 'rowIndex', 'align',
+           'vAlign', 'nowrap', 'sectionRowIndex']);
     }
     ___.extend(TameTableCompElement, TameElement);
     TameTableCompElement.prototype.getColSpan = function () {
@@ -2811,7 +2808,7 @@ var attachDocumentStub = (function () {
 
     function TameTableElement(node, editable) {
       TameTableCompElement.call(this, node, editable);
-      classUtils.exportFields(this, ['tBodies','tHead','tFoot']);
+      classUtils.exportFields(this, ['tBodies', 'tHead', 'tFoot']);
     }
     inertCtor(TameTableElement, TameTableCompElement, 'HTMLTableElement');
     TameTableElement.prototype.getTBodies = function () {
@@ -2860,7 +2857,7 @@ var attachDocumentStub = (function () {
     };
 
     ___.all2(___.grantTypedMethod, TameTableElement.prototype,
-             ['createTHead', 'deleteTHead','createTFoot', 'deleteTFoot',
+             ['createTHead', 'deleteTHead', 'createTFoot', 'deleteTFoot',
               'createCaption', 'deleteCaption', 'insertRow', 'deleteRow']);
 
     function tameEvent(event) {
@@ -3575,6 +3572,8 @@ var attachDocumentStub = (function () {
       throw new Error('id suffix "' + idSuffix + '" must start with "-"');
     }
     var idClass = idSuffix.substring(1);
+    var idClassPattern = new RegExp(
+        '(?:^|\\s)' + idClass.replace(/[\.$]/g, '\\$&') + '(?:\\s|$)');
     /** A per-gadget class used to separate style rules. */
     imports.getIdClass___ = function () {
       return idClass;
