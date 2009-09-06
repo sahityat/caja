@@ -110,8 +110,8 @@ domitaModules.classUtils = function() {
       throw new TypeError('setting a property that only has a getter');
     }
 
-    cajita.forOwnKeys(handlers, 
-                      ___.markFuncFreeze(function (propertyName, def) {
+    ___.forOwnKeys(handlers,
+                   ___.markFuncFreeze(function (propertyName, def) {
       var setter = def.set || propertyOnlyHasGetter;
       ___.useGetHandler(object, propertyName, def.get);
       ___.useSetHandler(object, propertyName, setter);
@@ -324,8 +324,8 @@ domitaModules.CssPropertiesCollection =
   // Maps style property names, e.g. cssFloat, to property names, e.g. float.
   var cssPropertyNames = {};
 
-  cajita.forOwnKeys(cssPropertyNameCollection,
-                    ___.markFuncFreeze(function (cssPropertyName) {
+  ___.forOwnKeys(cssPropertyNameCollection,
+                 ___.markFuncFreeze(function (cssPropertyName) {
     var baseStylePropertyName = cssPropertyName.replace(
         /-([a-z])/g, function (_, letter) { return letter.toUpperCase(); });
     var canonStylePropertyName = baseStylePropertyName;
@@ -386,8 +386,10 @@ var attachDocumentStub = (function () {
     return array.push.apply(array, rest);
   }
 
-  var tameNodeTrademark = cajita.Trademark('tameNode');
-  var tameEventTrademark = cajita.Trademark('tameEvent');
+  var TameNodeMark = ___.Trademark('TameNode');
+  var TameNodeT = TameNodeMark.guard;
+  var TameEventMark = ___.Trademark('TameEvent');
+  var TameEventT = TameEventMark.guard;
 
   // Define a wrapper type for known safe HTML, and a trademarker.
   // This does not actually use the trademarking functions since trademarks
@@ -537,7 +539,7 @@ var attachDocumentStub = (function () {
 
   var classUtils = domitaModules.classUtils();
 
-  var cssSealerUnsealerPair = cajita.makeSealerUnsealerPair();
+  var cssSealerUnsealerPair = ___.makeSealerUnsealerPair();
 
   // Implementations of setTimeout, setInterval, clearTimeout, and
   // clearInterval that only allow simple functions as timeouts and
@@ -545,7 +547,9 @@ var attachDocumentStub = (function () {
   // This is safe even if accessed across frame since the same
   // trademark value is never used with more than one version of
   // setTimeout.
-  var timeoutIdTrademark = cajita.Trademark('timeoutId');
+  var TimeoutIdMark = ___.Trademark('TimeoutId');
+  var TimeoutIdT = TimeoutIdMark.guard;
+  
   function tameSetTimeout(timeout, delayMillis) {
     // Existing browsers treat a timeout of null or undefined as a noop.
     var timeoutId;
@@ -562,19 +566,22 @@ var attachDocumentStub = (function () {
       // tameClearTimeout checks for NaN and handles it specially.
       timeoutId = NaN;
     }
-    return ___.freeze(___.stamp(timeoutIdTrademark,
-                                { timeoutId___: timeoutId }));
+    return ___.stamp([TimeoutIdMark.stamp],
+                     { timeoutId___: timeoutId });
   }
   ___.markFuncFreeze(tameSetTimeout);
   function tameClearTimeout(timeoutId) {
     if (timeoutId === null || timeoutId === (void 0)) { return; }
-    ___.guard(timeoutIdTrademark, timeoutId);
+    timeoutId = TimeoutIdT.coerce(timeoutId);
     var rawTimeoutId = timeoutId.timeoutId___;
     // Skip NaN values created for null timeouts above.
     if (rawTimeoutId === rawTimeoutId) { clearTimeout(rawTimeoutId); }
   }
   ___.markFuncFreeze(tameClearTimeout);
-  var intervalIdTrademark = cajita.Trademark('intervalId');
+  
+  var IntervalIdMark = ___.Trademark('IntervalId');
+  var IntervalIdT = IntervalIdMark.guard;
+  
   function tameSetInterval(interval, delayMillis) {
     // Existing browsers treat an interval of null or undefined as a noop.
     var intervalId;
@@ -590,20 +597,20 @@ var attachDocumentStub = (function () {
     } else {
       intervalId = NaN;
     }
-    return ___.freeze(___.stamp(intervalIdTrademark,
-                                { intervalId___: intervalId }));
+    return ___.stamp([IntervalIdMark.stamp],
+                     { intervalId___: intervalId });
   }
   ___.markFuncFreeze(tameSetInterval);
   function tameClearInterval(intervalId) {
     if (intervalId === null || intervalId === (void 0)) { return; }
-    ___.guard(intervalIdTrademark, intervalId);
+    intervalId = IntervalIdT.coerce(intervalId);
     var rawIntervalId = intervalId.intervalId___;
     if (rawIntervalId === rawIntervalId) { clearInterval(rawIntervalId); }
   }
   ___.markFuncFreeze(tameClearInterval);
 
   function makeScrollable(element) {
-    var overflow;
+    var overflow = null;
     if (element.currentStyle) {
       overflow = element.currentStyle.overflow;
     } else if (window.getComputedStyle) {
@@ -939,7 +946,7 @@ var attachDocumentStub = (function () {
     }
 
     function makeCache() {
-      var cache = cajita.newTable(false);
+      var cache = ___.newTable(false);
       cache.set(null, null);
       cache.set(void 0, null);
       return cache;
@@ -1047,14 +1054,11 @@ var attachDocumentStub = (function () {
 
     function tameRelatedNode(node, editable, tameNodeCtor) {
       if (node === null || node === void 0) { return null; }
-      // catch errors because node might be from a different domain
+      // Catch errors because node might be from a different domain.
       try {
         var docElem = node.ownerDocument.documentElement;
         for (var ancestor = node; ancestor; ancestor = ancestor.parentNode) {
-          // TODO(mikesamuel): replace with cursors so that subtrees are
-          // delegable.
-          // TODO: handle multiple classes.
-          if (idClass === ancestor.className) {
+          if (idClassPattern.test(ancestor.className)) {
             return tameNodeCtor(node, editable);
           } else if (ancestor === docElem) {
             return null;
@@ -1066,42 +1070,125 @@ var attachDocumentStub = (function () {
     }
 
     /**
-     * Returns a NodeList like object.
+     * Returns the length of a raw DOM Nodelist object, working around
+     * NamedNodeMap bugs in IE, Opera, and Safari as discussed at
+     * http://code.google.com/p/google-caja/issues/detail?id=935
+     *
+     * @param nodeList a DOM NodeList.
+     *
+     * @return the number of nodes in the NodeList.
      */
-    function tameNodeList(nodeList, editable, opt_tameNodeCtor, opt_keyAttrib) {
-      var tamed = [];
-      var node;
-
-      // Work around NamedNodeMap bugs in IE, Opera, and Safari as discussed
-      // at http://code.google.com/p/google-caja/issues/detail?id=935
+    function getNodeListLength(nodeList) {
       var limit = nodeList.length;
       if (limit !== +limit) { limit = 1/0; }
-      for (var i = 0; i < limit && (node = nodeList[i]); ++i) {
-        if (!opt_tameNodeCtor) {
-          throw 'Internal: Nonempty tameNodeList() without a tameNodeCtor';
-        }
-        node = opt_tameNodeCtor(nodeList.item(i), editable);
-        tamed[i] = node;
-        // Make the node available via its name if doing so would not mask
-        // any properties of tamed.
-        var key = opt_keyAttrib && node.getAttribute(opt_keyAttrib);
-        // TODO(mikesamuel): if key in tamed, we have an ambiguous match.
-        // Include neither?  This may happen with radio buttons in a form's
-        // elements list.
-        if (key && !(key.charAt(key.length - 1) === '_' || (key in tamed)
-                     || key === String(key & 0x7fffffff))) {
-          tamed[key] = node;
-        }
+      return limit;
+    }
+
+    /**
+     * Constructs a NodeList-like object.
+     *
+     * @param tamed a JavaScript array that will be populated and decorated
+     *     with the DOM NodeList API.
+     * @param nodeList an array-like object supporting a "length" property
+     *     and "[]" numeric indexing, or a raw DOM NodeList;
+     * @param editable whether the tame nodes wrapped by this object
+     *     should permit editing.
+     * @param opt_tameNodeCtor a function for constructing tame nodes
+     *     out of raw DOM nodes.
+     */
+    function mixinNodeList(tamed, nodeList, editable, opt_tameNodeCtor) {
+      var limit = getNodeListLength(nodeList);
+      if (limit > 0 && !opt_tameNodeCtor) {
+        throw 'Internal: Nonempty mixinNodeList() without a tameNodeCtor';
       }
-      node = nodeList = null;
+
+      for (var i = 0; i < limit && nodeList[i]; ++i) {
+        tamed[i] = opt_tameNodeCtor(nodeList[i], editable);
+      }
+
+      // Guard against accidental leakage of untamed nodes
+      nodeList = null;
 
       tamed.item = ___.markFuncFreeze(function (k) {
         k &= 0x7fffffff;
         if (k !== k) { throw new Error(); }
         return tamed[k] || null;
       });
-      // TODO(mikesamuel): if opt_keyAttrib, could implement getNamedItem
-      return cajita.freeze(tamed);
+
+      return tamed;
+    }
+
+    function tameNodeList(nodeList, editable, opt_tameNodeCtor) {
+      return ___.freeze(
+          mixinNodeList([], nodeList, editable, opt_tameNodeCtor));
+    }
+
+    /**
+     * Return a fake node list containing tamed nodes.
+     * @param {Array.<TameNode>} array of tamed nodes.
+     * @return an array that duck types to a node list.
+     */
+    function fakeNodeList(array) {
+      array.item = ___.markFuncFreeze(function(i) { return array[i]; });
+      return ___.freeze(array);
+    }
+
+    /**
+     * Constructs an HTMLCollection-like object which indexes its elements
+     * based on their NAME attribute.
+     *
+     * @param tamed a JavaScript array that will be populated and decorated
+     *     with the DOM HTMLCollection API.
+     * @param nodeList an array-like object supporting a "length" property
+     *     and "[]" numeric indexing.
+     * @param editable whether the tame nodes wrapped by this object
+     *     should permit editing.
+     * @param opt_tameNodeCtor a function for constructing tame nodes
+     *     out of raw DOM nodes.
+     */
+    function mixinHTMLCollection(tamed, nodeList, editable, opt_tameNodeCtor) {
+      mixinNodeList(tamed, nodeList, editable, opt_tameNodeCtor);
+
+      var tameNodesByName = {};
+      var tameNode;
+
+      for (var i = 0; i < tamed.length && (tameNode = tamed[i]); ++i) {
+        var name = tameNode.getAttribute('name');
+        if (name && !(name.charAt(name.length - 1) === '_' || (name in tamed)
+                     || name === String(name & 0x7fffffff))) {
+          if (!tameNodesByName[name]) { tameNodesByName[name] = []; }
+          tameNodesByName[name].push(tameNode);
+        }
+      }
+
+      ___.forOwnKeys(
+        tameNodesByName,
+        ___.markFuncFreeze(function (name, tameNodes) {
+          if (tameNodes.length > 1) {
+            tamed[name] = fakeNodeList(tameNodes);
+          } else {
+            tamed[name] = tameNodes[0];
+          }
+        }));
+
+      tamed.namedItem = ___.markFuncFreeze(function(name) {
+        name = String(name);
+        if (name.charAt(name.length - 1) === '_') {
+          return null;
+        }
+        if (___.hasOwnProp(tamed, name)) {
+          return ___.passesGuard(TameNodeT, tamed[name])
+              ? tamed[name] : tamed[name][0];
+        }
+        return null;
+      });
+
+      return tamed;
+    }
+
+    function tameHTMLCollection(nodeList, editable, opt_tameNodeCtor) {
+      return ___.freeze(
+          mixinHTMLCollection([], nodeList, editable, opt_tameNodeCtor));
     }
 
     function tameGetElementsByTagName(rootNode, tagName, editable) {
@@ -1134,11 +1221,13 @@ var attachDocumentStub = (function () {
       var classes = className.match(/[^\t\n\f\r ]+/g);
 
       // Filter out classnames in the restricted namespace.
-      for (var i = classes ? classes.length : 0; --i >= 0;) {
-        var classi = classes[i];
-        if (illegalSuffix.test(classi) || !isXmlNmTokens(classi)) {
-          classes[i] = classes[classes.length - 1];
-          --classes.length;
+      if (classes) {
+        for (var i = classes.length; --i >= 0;) {
+          var classi = classes[i];
+          if (illegalSuffix.test(classi) || !isXmlNmTokens(classi)) {
+            classes[i] = classes[classes.length - 1];
+            --classes.length;
+          }
         }
       }
 
@@ -1269,7 +1358,7 @@ var attachDocumentStub = (function () {
      */
     function TameNode(editable) {
       this.editable___ = editable;
-      ___.stamp(tameNodeTrademark, this, true);
+      TameNodeMark.stamp.mark___(this);
       classUtils.exportFields(this, tameNodeFields);
     }
     inertCtor(TameNode, Object, 'Node');
@@ -1339,7 +1428,7 @@ var attachDocumentStub = (function () {
     };
     TameBackedNode.prototype.appendChild = function (child) {
       // Child must be editable since appendChild can remove it from its parent.
-      cajita.guard(tameNodeTrademark, child);
+      child = TameNodeT.coerce(child);
       if (!this.childrenEditable___ || !child.editable___) {
         throw new Error(NOT_EDITABLE);
       }
@@ -1347,10 +1436,10 @@ var attachDocumentStub = (function () {
       return child;
     };
     TameBackedNode.prototype.insertBefore = function (toInsert, child) {
-      cajita.guard(tameNodeTrademark, toInsert);
+      toInsert = TameNodeT.coerce(toInsert);
       if (child === void 0) { child = null; }
       if (child !== null) {
-        cajita.guard(tameNodeTrademark, child);
+        child = TameNodeT.coerce(child);
         if (!child.editable___) {
           throw new Error(NOT_EDITABLE);
         }
@@ -1363,7 +1452,7 @@ var attachDocumentStub = (function () {
       return toInsert;
     };
     TameBackedNode.prototype.removeChild = function (child) {
-      cajita.guard(tameNodeTrademark, child);
+      child = TameNodeT.coerce(child);
       if (!this.childrenEditable___ || !child.editable___) {
         throw new Error(NOT_EDITABLE);
       }
@@ -1371,8 +1460,8 @@ var attachDocumentStub = (function () {
       return child;
     };
     TameBackedNode.prototype.replaceChild = function (newChild, oldChild) {
-      cajita.guard(tameNodeTrademark, newChild);
-      cajita.guard(tameNodeTrademark, oldChild);
+      newChild = TameNodeT.coerce(newChild);
+      oldChild = TameNodeT.coerce(oldChild);
       if (!this.childrenEditable___ || !newChild.editable___
           || !oldChild.editable___) {
         throw new Error(NOT_EDITABLE);
@@ -1507,7 +1596,7 @@ var attachDocumentStub = (function () {
       // TODO(metaweta): Add code to list all the other handled stuff we know
       // about.
       if (this.node___.properties___) {
-        return cajita.allKeys(this.node___.properties___);
+        return ___.allKeys(this.node___.properties___);
       }
       return [];
     };
@@ -1517,13 +1606,13 @@ var attachDocumentStub = (function () {
     // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-EventTarget :
     // "The EventTarget interface is implemented by all Nodes"
     TameBackedNode.prototype.dispatchEvent = function dispatchEvent(evt) {
-      cajita.guard(tameEventTrademark, evt);
+      evt = TameEventT.coerce(evt);
       bridal.dispatchEvent(this.node___, evt.event___);
     };
     ___.all2(___.grantTypedMethod, TameBackedNode.prototype, tameNodeMembers);
     if (document.documentElement.contains) {  // typeof is 'object' on IE
       TameBackedNode.prototype.contains = function (other) {
-        cajita.guard(tameNodeTrademark, other);
+        other = TameNodeT.coerce(other);
         var otherNode = other.node___;
         return this.node___.contains(otherNode);
       };
@@ -1534,7 +1623,7 @@ var attachDocumentStub = (function () {
        * Speced in <a href="http://www.w3.org/TR/DOM-Level-3-Core/core.html#Node3-compareDocumentPosition">DOM-Level-3</a>.
        */
       TameBackedNode.prototype.compareDocumentPosition = function (other) {
-        cajita.guard(tameNodeTrademark, other);
+        other = TameNodeT.coerce(other);
         var otherNode = other.node___;
         if (!otherNode) { return 0; }
         var bitmask = +this.node___.compareDocumentPosition(otherNode);
@@ -1587,7 +1676,7 @@ var attachDocumentStub = (function () {
     TamePseudoNode.prototype.insertBefore =
     TamePseudoNode.prototype.removeChild =
     TamePseudoNode.prototype.replaceChild = function () {
-      cajita.log("Node not editable; no action performed.");
+      ___.log("Node not editable; no action performed.");
       return void 0;
     };
     TamePseudoNode.prototype.getFirstChild = function () {
@@ -1692,7 +1781,7 @@ var attachDocumentStub = (function () {
       // TODO(metaweta): Add code to list all the other handled stuff we know
       // about.
       if (this.properties___) {
-        return cajita.allKeys(this.properties___);
+        return ___.allKeys(this.properties___);
       }
       return [];
     };
@@ -2237,6 +2326,20 @@ var attachDocumentStub = (function () {
           ['action', 'elements', 'enctype', 'method', 'target']);
     }
     inertCtor(TameFormElement, TameElement, 'HTMLFormElement');
+    TameFormElement.prototype.handleRead___ = function (name) {
+      name = String(name);
+      if (endsWith__.test(name)) { return void 0; }
+      // TODO(ihab.awad): Due to the following bug:
+      //     http://code.google.com/p/google-caja/issues/detail?id=997
+      // the read handlers get called on the *prototypes* as well as the
+      // instances on which they are installed. In that case, we just
+      // defer to the super handler, which works for now.
+      if (___.passesGuard(TameNodeT, this)) {
+        var tameElements = this.getElements();
+        if (___.hasOwnProp(tameElements, name)) { return tameElements[name]; }
+      }
+      return TameBackedNode.prototype.handleRead___.call(this, name);
+    };
     TameFormElement.prototype.submit = function () {
       return this.node___.submit();
     };
@@ -2251,8 +2354,8 @@ var attachDocumentStub = (function () {
       return this.setAttribute('action', String(newVal));
     };
     TameFormElement.prototype.getElements = function () {
-      return tameNodeList(
-          this.node___.elements, this.editable___, defaultTameNode, 'name');
+      return tameHTMLCollection(
+          this.node___.elements, this.editable___, defaultTameNode);
     };
     TameFormElement.prototype.getEnctype = function () {
       return this.getAttribute('enctype') || '';
@@ -2553,21 +2656,21 @@ var attachDocumentStub = (function () {
     TameIFrameElement.prototype.setAlign = function (alignment) {
       if (!this.editable___) { throw new Error(NOT_EDITABLE); }
       alignment = String(alignment);
-      if (alignment === 'left' || 
-          alignment === 'right' || 
+      if (alignment === 'left' ||
+          alignment === 'right' ||
           alignment === 'center') {
         this.node___.align = alignment;
       }
     };
     TameIFrameElement.prototype.getAttribute = function(attr) {
-      attrLc = String(attr).toLowerCase();
+      var attrLc = String(attr).toLowerCase();
       if (attrLc !== 'name' && attrLc !== 'src') {
         return TameElement.prototype.getAttribute.call(this, attr);
       }
       return null;
     };
     TameIFrameElement.prototype.setAttribute = function(attr, value) {
-      attrLc = String(attr).toLowerCase();
+      var attrLc = String(attr).toLowerCase();
       // The 'name' and 'src' attributes are whitelisted for all tags in
       // html4-attributes-whitelist.json, since they're needed on tags
       // like <img>.  Because there's currently no way to filter attributes
@@ -2575,7 +2678,7 @@ var attachDocumentStub = (function () {
       if (attrLc !== 'name' && attrLc !== 'src') {
         return TameElement.prototype.setAttribute.call(this, attr, value);
       }
-      cajita.log('Cannot set the [' + nameLc + '] attribute of an iframe.');
+      ___.log('Cannot set the [' + attrLc + '] attribute of an iframe.');
       return value;
     };
     TameIFrameElement.prototype.getFrameBorder = function () {
@@ -2584,7 +2687,7 @@ var attachDocumentStub = (function () {
     TameIFrameElement.prototype.setFrameBorder = function (border) {
       if (!this.editable___) { throw new Error(NOT_EDITABLE); }
       border = String(border).toLowerCase();
-      if (border === '0' || border === '1' || 
+      if (border === '0' || border === '1' ||
           border === 'no' || border === 'yes') {
         this.node___.frameBorder = border;
       }
@@ -2604,18 +2707,18 @@ var attachDocumentStub = (function () {
       this.node___.width = +width;
     };
     TameIFrameElement.prototype.handleRead___ = function (name) {
-      nameLc = String(name).toLowerCase();
+      var nameLc = String(name).toLowerCase();
       if (nameLc !== 'src' && nameLc !== 'name') {
         return TameElement.prototype.handleRead___.call(this, name);
       }
       return undefined;
     };
     TameIFrameElement.prototype.handleSet___ = function (name, value) {
-      nameLc = String(name).toLowerCase();
+      var nameLc = String(name).toLowerCase();
       if (nameLc !== 'src' && nameLc !== 'name') {
         return TameElement.prototype.handleSet___.call(this, name, value);
       }
-      cajita.log('Cannot set the [' + nameLc + '] property of an iframe.');
+      ___.log('Cannot set the [' + nameLc + '] property of an iframe.');
       return value;
     };
     ___.all2(___.grantTypedMethod, TameIFrameElement.prototype,
@@ -2627,8 +2730,8 @@ var attachDocumentStub = (function () {
       TameElement.call(this, node, editable, editable);
       classUtils.exportFields(
           this,
-          ['colSpan','cells','rowSpan','rows','rowIndex','align',
-           'vAlign','nowrap','sectionRowIndex']);
+          ['colSpan', 'cells', 'rowSpan', 'rows', 'rowIndex', 'align',
+           'vAlign', 'nowrap', 'sectionRowIndex']);
     }
     ___.extend(TameTableCompElement, TameElement);
     TameTableCompElement.prototype.getColSpan = function () {
@@ -2699,7 +2802,7 @@ var attachDocumentStub = (function () {
       if (!this.editable___) { throw new Error(NOT_EDITABLE); }
       requireIntIn(index, -1, this.node___.cells.length);
       return defaultTameNode(
-          this.node___.insertCell(index), 
+          this.node___.insertCell(index),
           this.editable___);
     };
     TameTableRowElement.prototype.deleteCell = function (index) {
@@ -2712,7 +2815,7 @@ var attachDocumentStub = (function () {
 
     function TameTableElement(node, editable) {
       TameTableCompElement.call(this, node, editable);
-      classUtils.exportFields(this, ['tBodies','tHead','tFoot']);
+      classUtils.exportFields(this, ['tBodies', 'tHead', 'tFoot']);
     }
     inertCtor(TameTableElement, TameTableCompElement, 'HTMLTableElement');
     TameTableElement.prototype.getTBodies = function () {
@@ -2759,9 +2862,9 @@ var attachDocumentStub = (function () {
       requireIntIn(index, -1, this.node___.rows.length);
       this.node___.deleteRow(index);
     };
-    
+
     ___.all2(___.grantTypedMethod, TameTableElement.prototype,
-             ['createTHead', 'deleteTHead','createTFoot', 'deleteTFoot',
+             ['createTHead', 'deleteTHead', 'createTFoot', 'deleteTFoot',
               'createCaption', 'deleteCaption', 'insertRow', 'deleteRow']);
 
     function tameEvent(event) {
@@ -2772,7 +2875,7 @@ var attachDocumentStub = (function () {
     function TameEvent(event) {
       assert(!!event);
       this.event___ = event;
-      ___.stamp(tameEventTrademark, this, true);
+      TameEventMark.stamp.mark___(this);
       classUtils.exportFields(
           this,
           ['type', 'target', 'pageX', 'pageY', 'altKey',
@@ -2974,7 +3077,7 @@ var attachDocumentStub = (function () {
       // TODO(metaweta): Add code to list all the other handled stuff we know
       // about.
       if (this.event___.properties___) {
-        return cajita.allKeys(this.event___.properties___);
+        return ___.allKeys(this.event___.properties___);
       }
       return [];
     };
@@ -2982,16 +3085,6 @@ var attachDocumentStub = (function () {
       return '[Fake CustomEvent]';
     };
     ___.grantTypedMethod(TameCustomHTMLEvent.prototype, 'initEvent');
-
-    /**
-     * Return a fake node list containing tamed nodes.
-     * @param {Array.<TameNode>} array of tamed nodes.
-     * @return an array that duck types to a node list.
-     */
-    function fakeNodeList(array) {
-      array.item = ___.markFuncFreeze(function(i) { return array[i]; });
-      return cajita.freeze(array);
-    }
 
     function TameHTMLDocument(doc, body, domain, editable) {
       TamePseudoNode.call(this, editable);
@@ -3015,7 +3108,7 @@ var attachDocumentStub = (function () {
           function () { return tameInnerHtml(body.innerHTML); },
           tameBody,
           editable);
-      cajita.forOwnKeys(
+      ___.forOwnKeys(
           { appendChild: 0, removeChild: 0, insertBefore: 0, replaceChild: 0 },
           ___.markFuncFreeze(function (k) {
             tameBodyElement[k] = tameBody[k].bind(tameBody);
@@ -3055,7 +3148,7 @@ var attachDocumentStub = (function () {
           editable);
       if (body.contains) {  // typeof is 'object' on IE
         tameHtmlElement.contains = function (other) {
-          cajita.guard(tameNodeTrademark, other);
+          other = TameNodeT.coerce(other);
           var otherNode = other.node___;
           return body.contains(otherNode);
         };
@@ -3066,7 +3159,7 @@ var attachDocumentStub = (function () {
          * Speced in <a href="http://www.w3.org/TR/DOM-Level-3-Core/core.html#Node3-compareDocumentPosition">DOM-Level-3</a>.
          */
         tameHtmlElement.compareDocumentPosition = function (other) {
-          cajita.guard(tameNodeTrademark, other);
+          other = TameNodeT.coerce(other);
           var otherNode = other.node___;
           if (!otherNode) { return 0; }
           var bitmask = +body.compareDocumentPosition(otherNode);
@@ -3099,7 +3192,7 @@ var attachDocumentStub = (function () {
       }
       this.documentElement___ = tameHtmlElement;
       classUtils.exportFields(
-          this, ['documentElement', 'body', 'title', 'domain']);
+          this, ['documentElement', 'body', 'title', 'domain', 'forms']);
     }
     inertCtor(TameHTMLDocument, TamePseudoNode, 'HTMLDocument');
     TameHTMLDocument.prototype.getNodeType = function () { return 9; };
@@ -3166,7 +3259,7 @@ var attachDocumentStub = (function () {
       var flags = html4.ELEMENTS[tagName];
       // Script exemption allows dynamic loading of proxied scripts.
       if ((flags & html4.eflags.UNSAFE) && !(flags & html4.eflags.SCRIPT)) {
-        cajita.log(UNSAFE_TAGNAME + "[" + tagName + "]: no action performed");
+  ___.ajita.log(UNSAFE_TAGNAME + "[" + tagName + "]: no action performed");
         return null;
       }
       var newEl = this.doc___.createElement(tagName);
@@ -3190,12 +3283,23 @@ var attachDocumentStub = (function () {
       var node = this.doc___.getElementById(id);
       return defaultTameNode(node, this.editable___);
     };
+    TameHTMLDocument.prototype.getForms = function () {
+      var tameForms = [];
+      for (var i = 0; i < this.doc___.forms.length; i++) {
+        var tameForm = tameRelatedNode(
+          this.doc___.forms.item(i), this.editable___, defaultTameNode);
+        // tameRelatedNode returns null if the node is not part of
+        // this node's virtual document.
+        if (tameForm !== null) { tameForms.push(tameForm); }
+      }
+      return fakeNodeList(tameForms);
+    };
     TameHTMLDocument.prototype.toString = function () {
       return '[Fake Document]';
     };
     TameHTMLDocument.prototype.write = function (text) {
       // TODO(mikesamuel): Needs implementation
-      cajita.log('Called document.write() with: ' + text);
+      ___.log('Called document.write() with: ' + text);
     };
     // http://www.w3.org/TR/DOM-Level-2-Events/events.html
     // #Events-DocumentEvent-createEvent
@@ -3321,7 +3425,7 @@ var attachDocumentStub = (function () {
           allCssProperties.getCssPropFromCanonical(stylePropertyName);
       if (!this.allowProperty___(cssPropertyName)) { return void 0; }
       var canonName = allCssProperties.getCanonicalPropFromCss(cssPropertyName);
-      return this.readByCanonicalName___(canonName);      
+      return this.readByCanonicalName___(canonName);
     };
     TameStyle.prototype.handleCall___ = function(name, args) {
       if (String(name) === 'getPropertyValue') {
@@ -3475,10 +3579,22 @@ var attachDocumentStub = (function () {
       throw new Error('id suffix "' + idSuffix + '" must start with "-"');
     }
     var idClass = idSuffix.substring(1);
+    var idClassPattern = new RegExp(
+        '(?:^|\\s)' + idClass.replace(/[\.$]/g, '\\$&') + '(?:\\s|$)');
     /** A per-gadget class used to separate style rules. */
     imports.getIdClass___ = function () {
       return idClass;
     };
+
+    // bitmask of trace points
+    //    0x0001 plugin_dispatchEvent
+    imports.domitaTrace___ = 0;
+    imports.getDomitaTrace = ___.markFuncFreeze(
+        function () { return imports.domitaTrace___; }
+    );
+    imports.setDomitaTrace = ___.markFuncFreeze(
+        function (x) { imports.domitaTrace___ = x; }
+    );
 
     // TODO(mikesamuel): remove these, and only expose them via window once
     // Valija works
@@ -3574,7 +3690,7 @@ var attachDocumentStub = (function () {
       ___.grantRead(this, 'document');
     }
 
-    cajita.forOwnKeys({
+    ___.forOwnKeys({
       document: tameDocument,
       location: tameLocation,
       navigator: tameNavigator,
@@ -3615,7 +3731,7 @@ var attachDocumentStub = (function () {
       TameWindow.prototype[propertyName] = value;
       ___.grantRead(TameWindow.prototype, propertyName);
     }));
-    cajita.forOwnKeys({
+    ___.forOwnKeys({
       scrollBy: ___.markFuncFreeze(
           function (dx, dy) {
             // The window is always auto scrollable, so make the apparent window
@@ -3644,7 +3760,7 @@ var attachDocumentStub = (function () {
           // a portion of the element's content as defined at
           // http://www.w3.org/TR/CSS2/selector.html#q20
           function (tameElement, pseudoElement) {
-            cajita.guard(tameNodeTrademark, tameElement);
+            tameElement = TameNodeT.coerce(tameElement);
             // Coerce all nullish values to undefined, since that is the value
             // for unspecified parameters.
             // Per bug 973: pseudoElement should be null according to the
@@ -3726,7 +3842,7 @@ var attachDocumentStub = (function () {
     TameWindow.prototype.handleEnum___ = function (ownFlag) {
       // TODO(metaweta): Add code to list all the other handled stuff we know
       // about.
-      return cajita.allKeys(this);
+      return ___.allKeys(this);
     };
 
     var tameWindow = new TameWindow();
@@ -3735,7 +3851,7 @@ var attachDocumentStub = (function () {
     function propertyOnlyHasGetter(_) {
       throw new TypeError('setting a property that only has a getter');
     }
-    cajita.forOwnKeys({
+    ___.forOwnKeys({
       // We define all the window positional properties relative to
       // the fake body element to maintain the illusion that the fake
       // document is completely defined by the nodes under the fake body.
@@ -3798,7 +3914,7 @@ var attachDocumentStub = (function () {
       }
     }));
 
-    cajita.forOwnKeys({
+    ___.forOwnKeys({
       innerHeight: function () { return tameDocument.body___.clientHeight; },
       innerWidth: function () { return tameDocument.body___.clientWidth; },
       outerHeight: function () { return tameDocument.body___.clientHeight; },
@@ -3825,7 +3941,7 @@ var attachDocumentStub = (function () {
 
     // Iterate over all node classes, assigning them to the Window object
     // under their DOM Level 2 standard name.
-    cajita.forOwnKeys(nodeClasses, ___.markFuncFreeze(function(name, ctor) {
+    ___.forOwnKeys(nodeClasses, ___.markFuncFreeze(function(name, ctor) {
       ___.primFreeze(ctor);
       tameWindow[name] = ctor;
       ___.grantRead(tameWindow, name);
@@ -3895,7 +4011,7 @@ var attachDocumentStub = (function () {
     var outers = imports.outers;
     if (___.isJSONContainer(outers)) {
       // For Valija, attach use the window object as outers.
-      cajita.forOwnKeys(outers, ___.markFuncFreeze(function(k, v) {
+      ___.forOwnKeys(outers, ___.markFuncFreeze(function(k, v) {
         if (!(k in tameWindow)) {
           tameWindow[k] = v;
           ___.grantRead(tameWindow, k);
@@ -3916,13 +4032,15 @@ var attachDocumentStub = (function () {
 function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   event = (event || window.event);
   var sig = String(handler).match(/^function\b[^\)]*\)/);
-  cajita.log(
-      'Dispatch ' + (event && event.type) +
-      'event thisNode=' + thisNode + ', ' +
-      'event=' + event + ', ' +
-      'pluginId=' + pluginId + ', ' +
-      'handler=' + (sig ? sig[0] : handler));
   var imports = ___.getImports(pluginId);
+  if (imports.domitaTrace___ & 0x1) {
+    ___.log(
+        'Dispatch ' + (event && event.type) +
+        'event thisNode=' + thisNode + ', ' +
+        'event=' + event + ', ' +
+        'pluginId=' + pluginId + ', ' +
+        'handler=' + (sig ? sig[0] : handler));
+  }
   switch (typeof handler) {
     case 'string':
       handler = imports[handler];
@@ -3938,13 +4056,13 @@ function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   try {
     var node = imports.tameNode___(thisNode, true);
     return ___.callPub(
-        handler, 
+        handler,
         'call',
         [ node, imports.tameEvent___(event), node ]);
   } catch (ex) {
     if (ex && ex.cajitaStack___ && 'undefined' !== (typeof console)) {
       console.error('Event dispatch %s: %s',
-          handler, ___.unsealCallerStack(ex.cajitaStack___).join('\n'));
+          handler, ex.cajitaStack___.join('\n'));
     }
     throw ex;
   } finally {

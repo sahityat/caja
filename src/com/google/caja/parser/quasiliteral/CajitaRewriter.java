@@ -163,7 +163,7 @@ public class CajitaRewriter extends Rewriter {
     result.getAttributes().putAll(node.getAttributes());
     return result;
   }
-
+  
   // A NOTE ABOUT MATCHING MEMBER ACCESS EXPRESSIONS
   // When we match the pattern like '@x.@y' or '@x.@y()' against a specimen,
   // the result is that 'y' is bound to the rightmost component, and 'x' is
@@ -228,17 +228,18 @@ public class CajitaRewriter extends Rewriter {
           synopsis="rewrites the load function.",
           reason="",
           matches="load(@arg)",
-          substitutes="moduleMap___[@moduleIndex]")
+          substitutes="<depending on whether bundle the modules")
       public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         Map<String, ParseTreeNode> bindings = match(node);
         if (bindings != null && scope.isImported("load")) {
           ParseTreeNode arg = bindings.get("arg");
           if (arg instanceof StringLiteral) {
             assert(moduleManager != null);
-
             int index = moduleManager.getModule((StringLiteral) arg);
             if (index != -1) {
-              return substV("moduleIndex",
+              return QuasiBuilder.substV(
+                  "moduleMap___[@moduleIndex]",
+                  "moduleIndex",
                   new IntegerLiteral(FilePosition.UNKNOWN, index));
             } else {
               // error messages were logged in the function getModule
@@ -324,10 +325,10 @@ public class CajitaRewriter extends Rewriter {
           Set<String> importNames = s2.getImportedVariables();
           // Order imports so that Array and Object appear first, and so that
           // they appear before any use of the [] and {} shorthand syntaxes
-          // since those are specified in ES262 by looking up the identifiers
+          // since those are specified in ES3 by looking up the identifiers
           // "Array" and "Object" in the local scope.
           // SpiderMonkey actually implements this behavior, though it is fixed
-          // in FF3, and ES3.1 is specifying the behavior of [] and {} in terms
+          // in FF3, and ES5 specifies the behavior of [] and {} in terms
           // of the original Array and Object constructors for that context.
           Set<String> orderedImportNames = new LinkedHashSet<String>();
           if (importNames.contains("Array")) {
@@ -386,7 +387,7 @@ public class CajitaRewriter extends Rewriter {
               + "variable to a new anonymous function every time control "
               + "re-enters the enclosing block."
               + "\n"
-              + "Note that ES3.1 and ES-Harmony specify a better and safer semantics "
+              + "Note that ES-Harmony will specify a better and safer semantics "
               + "-- block level lexical scoping -- that we'd like to adopt into "
               + "Cajita eventually. However, it is so challenging to implement this "
               + "semantics by translation to currently-implemented JavaScript "
@@ -1062,6 +1063,30 @@ public class CajitaRewriter extends Rewriter {
     new Rule() {
       @Override
       @RuleDescription(
+          name="setIndexStatic",
+          synopsis="Initialize the computed direct properties (static members) of a "
+              + "potentially-mutable named function.",
+          reason="",
+          matches="@fname[@s] = @r",
+          substitutes="___.setStatic(@fname, @s, @r)")
+      public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
+        Map<String, ParseTreeNode> bindings = match(node);
+        if (bindings != null && bindings.get("fname") instanceof Reference) {
+          Reference fname = (Reference) bindings.get("fname");
+          if (scope.isDeclaredFunction(getReferenceName(fname))) {
+            return substV(
+                "fname", noexpand(fname),
+                "s", expand(bindings.get("s"), scope),
+                "r", expand(bindings.get("r"), scope));
+          }
+        }
+        return NONE;
+      }
+    },
+
+    new Rule() {
+      @Override
+      @RuleDescription(
           name="setPublic",
           synopsis="Set a public property.",
           reason="If the object is an unfrozen JSONContainer (a record or "
@@ -1702,7 +1727,7 @@ public class CajitaRewriter extends Rewriter {
             + "  @stmts*;\n"
             + "  @bs*;\n"
             + "}\n"
-            + "___.markFuncOnly(@fname, @'fname');")
+            + "@fname.FUNC___ = @'fname';\n")
       public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         if (node instanceof FunctionDeclaration &&
             scope == scope.getClosestDeclarationContainer()) {
@@ -1723,7 +1748,7 @@ public class CajitaRewriter extends Rewriter {
                 + "  @stmts*;\n"
                 + "  @bs*;\n"
                 + "}\n"
-                + "___.markFuncOnly(@fRef, @rf);",
+                + "@fRef.FUNC___ = @rf;\n",
                 "fname", fname,
                 "fRef", new Reference(fname),
                 "rf", toStringLiteral(fname),
@@ -1746,8 +1771,11 @@ public class CajitaRewriter extends Rewriter {
       @Override
       @RuleDescription(
           name="funcNamedSimpleDecl",
-          synopsis="",
-          reason="",
+          synopsis="Simulate a nested named function declaration with a top "
+                   + "level named function declaration inside an anon "
+                   + "function expression.",
+          reason="Current (pre-ES5) browsers have wacky scoping semantics "
+            + "for nested named function declarations.",
           matches="function @fname(@ps*) { @bs*; }",
           substitutes="@fname = (function() {\n"
             + "  function @fself(@ps*) {\n"
@@ -1755,7 +1783,8 @@ public class CajitaRewriter extends Rewriter {
             + "    @stmts*;\n"
             + "    @bs*;\n"
             + "  }\n"
-            + "  return ___.markFuncOnly(@fself, @'fname');\n"
+            + "  @fself.FUNC___ = @'fname';\n"
+            + "  return @fself;\n"
             + "})();")
       public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         Map<String, ParseTreeNode> bindings = (
@@ -1780,7 +1809,8 @@ public class CajitaRewriter extends Rewriter {
               + "    @stmts*;\n"
               + "    @bs*;\n"
               + "  }\n"
-              + "  return ___.markFuncOnly(@rfself, @rf);\n"
+              + "  @rfself.FUNC___ = @rf;\n"
+              + "  return @rfself;\n"
               + "})();",
               "fname", fname,
               "fRef", new Reference(fname),

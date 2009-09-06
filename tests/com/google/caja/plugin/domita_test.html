@@ -96,7 +96,7 @@
     <!-- Ensure http://www.google.com/favicon.ico is :visited -->
     <img src="http://www.google.com/favicon.ico"/>
 
-    <div id="untrusted_content" class="xyz___"
+    <div id="untrusted_content" class="vdoc-body___ xyz___"
      title="<Untrusted Content Title>"
      style="position: relative;
             width: 600px;
@@ -186,7 +186,7 @@
         var div = container.ownerDocument.createElement('DIV');
         div.innerHTML = htmlAndScript[1];
         while (div.firstChild) { container.appendChild(div.firstChild); }
-        (new Function(htmlAndScript[2]))();
+        eval(htmlAndScript[2]);
       }
 
       var isValija = /[&?]valija([=&]|$)/.test(location.search);
@@ -202,6 +202,20 @@
             });
         ___.getNewModuleHandler().setImports(testImports);
         loadScript('valija.co.js');
+      }
+    })();</script>
+
+    <script type="text/javascript">
+    var serverJsSandboxMaker;
+    (function () {
+      if (isValija) {
+        var testImports = ___.copy(___.sharedImports);
+        testImports.loader = ___.freeze({
+              provide: ___.markFuncFreeze(function (v)
+                  { serverJsSandboxMaker = v; })
+            });
+        ___.getNewModuleHandler().setImports(testImports);
+        loadScript('serverjs-sandbox.co.js');
       }
     })();</script>
 
@@ -392,35 +406,43 @@
 
       testImports.xhrModuleLoad = ___.primFreeze({
         async: ___.markFuncFreeze(function(src) {
-          return xhrModuleLoader.async(
+          return xhrModuleLoad.async(
               '/ant-lib/com/google/caja/' + src);
         })
       });
         
       testImports.scriptModuleLoad = ___.primFreeze({
         async: ___.markFuncFreeze(function(src) {
-          return scriptModuleLoader.async(
+          return scriptModuleLoad.async(
               'http://localhost:8000/ant-lib/com/google/caja/' + src);
         })
       });
 
-      testImports.xhrIncludeScript = ___.primFreeze({ 
-        async: ___.markFuncFreeze(function(src) {
-          var m = xhrModuleLoader.async(
-              '/ant-lib/com/google/caja/' + src);
-          return Q.when(m,
-              function(module) { return module({$v: testImports.$v}); });
-        })
-      });
-          
-      testImports.scriptIncludeScript = ___.primFreeze({ 
-        async: ___.markFuncFreeze(function(src) {
-          var m = scriptModuleLoader.async(
-              'http://localhost:8000/ant-lib/com/google/caja/' + src);
-          return Q.when(m,
-              function(module) { return module({$v: testImports.$v}); });
-        })
-      });
+      if (isValija) {
+        testImports.xhrIncludeScript = ___.primFreeze({ 
+          async: ___.markFuncFreeze(function(src) {
+            var m = xhrModuleLoad.async(
+                '/ant-lib/com/google/caja/' + src);
+            return Q.when(m,
+                function(module) { return module({$v: testImports.$v}); });
+          })
+        });
+            
+        testImports.scriptIncludeScript = ___.primFreeze({ 
+          async: ___.markFuncFreeze(function(src) {
+            var m = scriptModuleLoad.async(
+                'http://localhost:8000/ant-lib/com/google/caja/' + src);
+            return Q.when(m,
+                function(module) { return module({$v: testImports.$v}); });
+          })
+        });
+        
+        testImports.env = testImports;
+        testImports.env.x = 6;
+        var $s = serverJsSandboxMaker.CALL___(
+                testImports.env, valijaMaker, testImports.xhrModuleLoad);
+        testImports.serverJsModuleLoad = $s.loadModule;
+      }
 
       attachDocumentStub(
            '-xyz___',
@@ -459,7 +481,7 @@
       window.toString = function () { return '[WINDOW]'; };
 
       inlineHtml(isValija ? 'domita_test.vo.html' : 'domita_test.co.html',
-          testDomContainer);
+                 testDomContainer);
     })(); </script>
 
   </body>

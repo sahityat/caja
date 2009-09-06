@@ -171,14 +171,12 @@ public class ParserTest extends CajaTestCase {
     runRenderTest("parsertest9.js", "rendergolden9.txt", false, false);
   }
   public final void testThrowAsRestrictedProduction() throws Exception {
-    if (false) {
     try {
       js(fromString("throw \n new Error()"));
       fail("throw followed by newline should fail");
     } catch (ParseException ex) {
       assertEquals(MessageType.EXPECTED_TOKEN,
                    ex.getCajaMessage().getMessageType());
-    }
     }
     // But it should pass if there is a line-continuation
     js(fromString("throw \\\n new Error()"));
@@ -333,7 +331,7 @@ public class ParserTest extends CajaTestCase {
   public final void testUnnormalizedIdentifiers() throws Exception {
     // Test that identifiers not normalized to Normal Form C (Unicode NFC)
     // result in a ParseException with a useful error message.
-    // According to chapter 6 of ES3.1, "The [source] text is expected to
+    // According to chapter 6 of ES5, "The [source] text is expected to
     // have been normalized to Unicode Normalized Form C (canonical
     // composition)."
     try {
