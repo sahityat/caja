@@ -136,8 +136,9 @@ public class DomitaTest extends CajaTestCase {
 
     // check the title of the document
     String title = driver.getTitle();
-    assertTrue("The title shows " + title, title.contains("all tests passed"));
-
+    assertTrue("The title shows " + title.substring(title.lastIndexOf("-") + 1),
+        title.contains("all tests passed"));
+    
     driver.quit();
   }
 
