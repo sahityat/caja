@@ -44,6 +44,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import junit.framework.AssertionFailedError;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
@@ -426,13 +428,59 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  /** http://code.google.com/p/google-caja/issues/detail?id=1057 */
-  public void testClassNames() throws Exception {
-    // TODO(felix8a): refactor assertSafeHtml to test warning messages
+  public final void testValidClassNames() throws Exception {
     assertSafeHtml(
-        htmlFragment(fromString("<div class='!@#$%* ok__1'></div>")),
-        htmlFragment(fromString("<div class='!@#$%* ok__1'></div>")),
+        htmlFragment(fromString("<div class='$-.:;()[]='></div>")),
+        htmlFragment(fromString("<div class='$-.:;()[]='></div>")),
         new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<div class='!@{} ok__1'></div>")),
+        htmlFragment(fromString("<div class='!@{} ok__1'></div>")),
+        new Block());
+  }
+
+  public final void testValidIdNames() throws Exception {
+    assertSafeHtml(
+        htmlFragment(fromString("<input name='tag[]'>")),
+        htmlFragment(fromString("<input name='tag[]'>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<input name='form$location'>")),
+        htmlFragment(fromString("<input name='form$location'>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString("<input name='$-.:;()[]='>")),
+        htmlFragment(fromString("<input name='$-.:;()[]='>")),
+        new Block());
+    assertSafeHtml(
+        htmlFragment(fromString(
+            "<div id='23skiddoo'></div>"
+            + "<div id='8675309'></div>"
+            + "<div id='$-.:;()[]='></div>")),
+        htmlFragment(fromString(
+            "<div id='id_1___'></div>"
+            + "<div id='id_2___'></div>"
+            + "<div id='id_3___'></div>")),
+        js(fromString(
+            "{"
+            + "  var el___;"
+            + "  var emitter___ = IMPORTS___.htmlEmitter___;"
+            + "  el___ = emitter___.byId('id_1___');"
+            + "  emitter___.setAttr(el___, 'id',"
+            + "    '23skiddoo-' + IMPORTS___.getIdClass___());"
+            + "  el___ = emitter___.byId('id_2___');"
+            + "  emitter___.setAttr(el___, 'id',"
+            + "    '8675309-' + IMPORTS___.getIdClass___());"
+            + "  el___ = emitter___.byId('id_3___');"
+            + "  emitter___.setAttr(el___, 'id',"
+            + "    '$-.:;()[]=-' + IMPORTS___.getIdClass___());"
+            + "  el___ = emitter___.finish();"
+            + "  emitter___.signalLoaded();"
+            + "}")));
+  }
+
+  public final void testInvalidClassNames() throws Exception {
+    // TODO(felix8a): refactor assertSafeHtml to test warning messages
     assertSafeHtml(
         htmlFragment(fromString("<div class='ok bad__'></div>")),
         htmlFragment(fromString("<div></div>")),
@@ -447,7 +495,7 @@ public class TemplateCompilerTest extends CajaTestCase {
         new Block());
   }
 
-  public void testIllegalSuffixes() throws Exception {
+  public final void testInvalidIdNames() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<input id='bad1__' name='bad2__'>")),
         htmlFragment(fromString("<input>")),
@@ -483,7 +531,7 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertNotNull(error);
   }
 
-  public void testIdRefsRewriting() throws Exception {
+  public final void testIdRefsRewriting() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString(
             "<table><tr><td headers='a b'></td></tr></table>")),
@@ -497,7 +545,7 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "  el___ = emitter___.byId('id_1___');"
             + "  emitter___.setAttr(el___, 'headers',"
             + "    'a-' + IMPORTS___.getIdClass___()"
-            + "    + (' b-' + IMPORTS___.getIdClass___()));"
+            + "    + ' b-' + IMPORTS___.getIdClass___());"
             + "  el___.removeAttribute('id');"
             + "  el___ = emitter___.finish();"
             + "  emitter___.signalLoaded();"

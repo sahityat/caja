@@ -1957,8 +1957,11 @@ jsunitRegister('testClassNames', function testClassNames() {
 
   assertTrue('has class', el.hasAttribute('class'));
 
-  el.className = '!@#$%*[] ok__1';
-  assertEquals('!@#$%*[] ok__1', el.className);
+  el.className = '$-.:;()[]=';
+  assertEquals('$-.:;()[]=', el.className);
+
+  el.className = '!@{} ok__1';
+  assertEquals('!@{} ok__1', el.className);
 
   el.className = 'simple';
   assertEquals('simple', el.className);
@@ -2015,11 +2018,13 @@ jsunitRegister('testStrangeIds', function testStrangeIds() {
       "<input id='test-strange-ids-1' name='tag[]'>\n"
       + "<input id='test-strange-ids-2' name='form$location'>\n"
       + "<span id='23skiddoo'></span>\n"
-      + "<span id='8675309'></span>\n");
+      + "<span id='8675309'></span>\n"
+      + "<span id='$-.:;()[]='></span>\n");
   assertEquals('tag[]', $('test-strange-ids-1').name);
   assertEquals('form$location', $('test-strange-ids-2').name);
   assertEquals('23skiddoo', $('23skiddoo').id);
   assertEquals('8675309', $('8675309').id);
+  assertEquals('$-.:;()[]=', $('$-.:;()[]=').id);
   pass('test-strange-ids');
 });
 

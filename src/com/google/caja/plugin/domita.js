@@ -410,20 +410,6 @@ var attachDocumentStub = (function () {
 
   var XML_SPACE = '\t\n\r ';
 
-  var VALID_ID_CHAR =
-      unicode.LETTER + unicode.DIGIT + '$_:.\\-\\[\\]'
-      + unicode.COMBINING_CHAR + unicode.EXTENDER;
-
-  var VALID_ID_PATTERN = new RegExp(
-      '^[' + VALID_ID_CHAR + ']+$');
-
-  var VALID_ID_LIST_PATTERN = new RegExp(
-      '^[' + XML_SPACE + VALID_ID_CHAR + ']*$');
-
-  var FORBIDDEN_ID_PATTERN = new RegExp('__\\s*$');
-
-  var FORBIDDEN_ID_LIST_PATTERN = new RegExp('__(?:\\s|$)');
-
   var JS_SPACE = '\t\n\r ';
   // An identifier that does not end with __.
   var JS_IDENT = '(?:[a-zA-Z_][a-zA-Z0-9$_]*[a-zA-Z0-9$]|[a-zA-Z])_?';
@@ -437,6 +423,23 @@ var attachDocumentStub = (function () {
         + '[' + JS_SPACE + ']*)?\\)'
       // And it can end with a semicolon.
       + '[' + JS_SPACE + ']*(?:;?[' + JS_SPACE + ']*)$');
+
+  // These id patterns match the ones in HtmlAttributeRewriter.
+
+  var VALID_ID_CHAR =
+      unicode.LETTER + unicode.DIGIT + '_'
+      + '$\\-.:;=()\\[\\]'
+      + unicode.COMBINING_CHAR + unicode.EXTENDER;
+
+  var VALID_ID_PATTERN = new RegExp(
+      '^[' + VALID_ID_CHAR + ']+$');
+
+  var VALID_ID_LIST_PATTERN = new RegExp(
+      '^[' + XML_SPACE + VALID_ID_CHAR + ']*$');
+
+  var FORBIDDEN_ID_PATTERN = new RegExp('__\\s*$');
+
+  var FORBIDDEN_ID_LIST_PATTERN = new RegExp('__(?:\\s|$)');
 
   function isValidId(s) {
     return !FORBIDDEN_ID_PATTERN.test(s)
