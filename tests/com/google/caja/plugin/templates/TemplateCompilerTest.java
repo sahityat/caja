@@ -40,10 +40,9 @@ import com.google.caja.util.Pair;
 import java.net.URI;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import junit.framework.AssertionFailedError;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
@@ -134,9 +133,7 @@ public class TemplateCompilerTest extends CajaTestCase {
   public final void testTargetsRewritten() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<a href='foo' target='_self'>hello</a>")),
-        htmlFragment(fromString(
-            "<a href='foo'"
-            + " target='_blank'>hello</a>")),
+        htmlFragment(fromString("<a href='foo' target='_blank'>hello</a>")),
         new Block());
   }
 
@@ -233,8 +230,7 @@ public class TemplateCompilerTest extends CajaTestCase {
   public final void testImageSrc() throws Exception {
     assertSafeHtml(
         htmlFragment(fromString("<img src='blank.gif' width='20'/>")),
-        htmlFragment(fromString(
-            "<img src='blank.gif' width='20'/>")),
+        htmlFragment(fromString("<img src='blank.gif' width='20'/>")),
         new Block());
   }
 
@@ -245,8 +241,7 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "Hello\n"
             + "</div>\n")),
         htmlFragment(fromString(
-            "<div style=\"position: absolute; background:"
-            + " url('test:/bg-image')"
+            "<div style=\"position: absolute; background: url('test:/bg-image')"
             + "\">\nHello\n</div>")),
         new Block());
   }
@@ -509,17 +504,33 @@ public class TemplateCompilerTest extends CajaTestCase {
             + "}")));
   }
 
+  public final void testMultiDocs() throws Exception {
+    assertSafeHtml(
+        Arrays.asList(
+            htmlFragment(fromString("Hello")),
+            htmlFragment(fromString(", World!"))),
+        htmlFragment(fromString("Hello, World!")),
+        new Block());
+  }
+
   private void assertSafeHtml(
       DocumentFragment input, DocumentFragment htmlGolden, Block jsGolden)
       throws ParseException {
-    Pair<Node, List<CssTree.StyleSheet>> htmlAndCss = extractScriptsAndStyles(
-        input);
+    assertSafeHtml(Collections.singletonList(input), htmlGolden, jsGolden);
+  }
+
+  private void assertSafeHtml(
+      List<DocumentFragment> inputs, DocumentFragment htmlGolden, Block jsGolden)
+      throws ParseException {
+    List<Node> html = new ArrayList<Node>();
+    List<CssTree.StyleSheet> css = new ArrayList<CssTree.StyleSheet>();
+    for (DocumentFragment input : inputs) {
+      extractScriptsAndStyles(input, html, css);
+    }
 
     TemplateCompiler tc = new TemplateCompiler(
-        Collections.singletonList(htmlAndCss.a), htmlAndCss.b,
-        CssSchema.getDefaultCss21Schema(mq),
-        HtmlSchema.getDefault(mq),
-        meta, mc, mq);
+        html, css, CssSchema.getDefaultCss21Schema(mq),
+        HtmlSchema.getDefault(mq), meta, mc, mq);
     Document doc = DomParser.makeDocument(null, null);
     Pair<Node, List<Block>> safeContent = tc.getSafeHtml(doc);
     assertMessagesLessSevereThan(MessageLevel.ERROR);
@@ -532,12 +543,12 @@ public class TemplateCompilerTest extends CajaTestCase {
     assertEquals(render(jsGolden), render(consolidate(safeContent.b)));
   }
 
-  private Pair<Node, List<CssTree.StyleSheet>> extractScriptsAndStyles(Node n)
+  private void extractScriptsAndStyles(
+      Node n, List<Node> htmlOut, List<CssTree.StyleSheet> cssOut)
       throws ParseException {
     n = extractScripts(n);
-    List<CssTree.StyleSheet> stylesheets = new ArrayList<CssTree.StyleSheet>();
-    extractStyles(n, stylesheets);
-    return Pair.pair(n, stylesheets);
+    htmlOut.add(n);
+    extractStyles(n, cssOut);
   }
 
   private Node extractScripts(Node n) throws ParseException {

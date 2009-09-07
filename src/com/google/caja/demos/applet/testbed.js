@@ -53,8 +53,9 @@
  * @author mikesamuel@gmail.com
  * @overrides prettyPrint, prettyPrintOne
  * @provides BOGUS_PROXY_URL, cajole, gadgetPublicApis, getCajoler, getImports,
- *     getTestbedServer, indentAndWrapCode, initTestbeds, innerText,
- *     loadExampleInto, renderTemplate, registerTestbed, runPlain, testbeds
+ *     getUiSuffix, getTestbedServer, indentAndWrapCode, initTestbeds,
+ *     innerText, loadExampleInto, renderTemplate, registerTestbed, runPlain,
+ *     testbeds
  * @requires ___, HtmlEmitter, alert, attachDocumentStub, cajita, console,
  *     document, eval, html, location, valijaMaker, window
  */
@@ -129,6 +130,15 @@ var getTestbedServer = (function () {
 })();
 
 /**
+ * Computes the UI suffix given an arbitrary element in the template-generated
+ * content.
+ */
+function getUiSuffix(element) {
+  while (!element.hasAttribute('id')) { element = element.parentNode; }
+  return element.id.replace(/^[^\.]+/, '');
+}
+
+/**
  * Reads caja code and configuration from the testbed form, cajoles
  * it, runs it, and displays the output in the current HTML page.
  * @param {HTMLFormElement} form
@@ -169,8 +179,7 @@ var cajole = (function () {
       eval(script);
       gadgetPublicApis['gadget' + uiSuffix] = ___.primFreeze(imports.exports);
     } catch (ex) {
-      var cajitaStack = ex.cajitaStack___
-          && ___.unsealCallerStack(ex.cajitaStack___);
+      var cajitaStack = ex.cajitaStack___;
       if (cajitaStack) {
         stackTrace.style.display = '';
         document.getElementById('cajita-stack' + uiSuffix).appendChild(
@@ -208,22 +217,20 @@ var cajole = (function () {
     logForm.submit();
   }
 
-  function cajole(form) {
-    var uiSuffix = form.id.replace(/^[^\.]+/, '');
-
-    var inputs = form.elements;
+  function cajole(uiSuffix) {
     var features = ['testbedServer=' + getTestbedServer().replace(/,/g, '%2C')];
     // See CajaApplet.Feature
     cajita.forOwnKeys(
         { EMBEDDABLE: true, DEBUG_SYMBOLS: true, VALIJA_MODE: true },
         ___.markFuncFreeze(function (featureName) {
-          if (inputs[featureName + uiSuffix].checked) {
-          features.push(featureName);
+          if (document.getElementById(featureName + uiSuffix).checked) {
+            features.push(featureName);
           }
         }));
     features = features.join(',');
     
-    var src = inputs['htmlsource' + uiSuffix].value.replace(/^\s+|\s+$/g, '');
+    var src = document.getElementById('htmlsource' + uiSuffix)
+        .value.replace(/^\s+|\s+$/g, '');
 
     logToServer('features:' + features + '\nsrc:' + src);
 
@@ -251,14 +258,13 @@ var cajole = (function () {
 
 /**
  * Runs the given code uncajoled in an iframe.
- * @param {HTMLFormElement} form the form object containing the code to run.
+ * @param {String} uiSuffix the UI suffix for the HTML container containing
+ * the code to run.
  */
-function runPlain(form) {
-  // Get the part of the form name from the dot onward
-  var uiSuffix = form.id.replace(/^[^\.]+/, '');
+function runPlain(uiSuffix) {
   // Strip off whitespace before & after the given text
-  var src = 
-      form.elements['htmlsource' + uiSuffix].value.replace(/^\s+|\s+$/g, '');
+  var src = document.getElementById('htmlsource' + uiSuffix)
+      .value.replace(/^\s+|\s+$/g, '');
   var div = document.getElementById('caja-html' + uiSuffix);
   while(div.childNodes[0]) {
     div.removeChild(div.childNodes[0]);
