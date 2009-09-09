@@ -3200,7 +3200,8 @@ var attachDocumentStub = (function () {
       }
       this.documentElement___ = tameHtmlElement;
       classUtils.exportFields(
-          this, ['documentElement', 'body', 'title', 'domain', 'forms']);
+          this, ['documentElement', 'body', 'title', 'domain', 'forms',
+                 'compatMode']);
     }
     inertCtor(TameHTMLDocument, TamePseudoNode, 'HTMLDocument');
     TameHTMLDocument.prototype.getNodeType = function () { return 9; };
@@ -3301,6 +3302,9 @@ var attachDocumentStub = (function () {
         if (tameForm !== null) { tameForms.push(tameForm); }
       }
       return fakeNodeList(tameForms);
+    };
+    TameHTMLDocument.prototype.getCompatMode = function () {
+      return 'CSS1Compat';
     };
     TameHTMLDocument.prototype.toString = function () {
       return '[Fake Document]';
