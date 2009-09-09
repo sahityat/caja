@@ -4047,7 +4047,7 @@ function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   }
   switch (typeof handler) {
     case 'string':
-      handler = imports[handler];
+      handler = imports.$v ? imports.$v.ro(handler) : imports[handler];
       break;
     case 'function': case 'object':
       break;
