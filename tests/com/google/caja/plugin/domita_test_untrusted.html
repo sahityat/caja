@@ -39,6 +39,10 @@
   <b>Click me</b>
 </p>
 
+<p class="clickme-testcontainer" id="test-innerhtml-onclick">
+  <b>do not click yet</b>
+</p>
+
 <div class="clickme-testcontainer" id="test-case-insensitive-attrs">
   <table id="is-red">
     <tr>
@@ -71,7 +75,7 @@
   <button type="button" name="b">Button B 2</button>
   <input type="checkbox" name="c">
 </form>
-    
+
 <form id="test-onreset-form">
   <div class="clickme-testcontainer" id="test-onreset">
     <input type="reset" value="click me">
@@ -285,6 +289,8 @@ After
   <p>I have <b title="I have attributes">content</b></p>
 </div>
 
+<p class="testcontainer" id="test-compat-mode">Compat Mode:</p>
+
 <div class="testcontainer" id="test-clone-node-listeners">
   <input id="test-clone-node-clickable" type="checkbox">
 </div>
@@ -423,6 +429,11 @@ Script Module Loader Failure</p>
 
 <p class="testcontainer" id="recursive-module">
 Recursive Module</p>
+
+<p class="testcontainer" id="server-js-module">ServerJS Module</p>
+
+<p class="testcontainer" id="server-js-recursive-module">
+ServerJS Recursive Module</p>
 
 <p class="testcontainer" id="test-document-body-appendChild"
  >I should be the last element until something is appended to document.body</p>
@@ -753,6 +764,23 @@ jsunitRegister('testDomClassHierarchy',
         pass('test-dom-class-hierarchy');
       });
 });
+
+jsunitRegister('testInnerhtmlOnclick',
+               function testInnerhtmlOnclick() {
+  var el = document.getElementById('test-innerhtml-onclick');
+  if (directAccess.isValija) {
+    el.innerHTML = '<b onclick="innerhtmlClicked();">Click me</b>';
+  } else {
+    // in cajita, innerhtmlClicked is a local module function,
+    // and there's no way for domita.js to access it.
+    el.innerHTML = "<span>Cajita can't link up onclick= functions</span>";
+    pass('test-innerhtml-onclick');
+  }
+});
+
+function innerhtmlClicked() {
+  pass('test-innerhtml-onclick');
+}
 
 jsunitRegister('testCaseInsensitiveAttrs',
                function testCaseInsensitiveAttrs() {
@@ -1953,8 +1981,11 @@ jsunitRegister('testClassNames', function testClassNames() {
 
   assertTrue('has class', el.hasAttribute('class'));
 
-  el.className = '!@#$%*[] ok__1';
-  assertEquals('!@#$%*[] ok__1', el.className);
+  el.className = '$-.:;()[]=';
+  assertEquals('$-.:;()[]=', el.className);
+
+  el.className = '!@{} ok__1';
+  assertEquals('!@{} ok__1', el.className);
 
   el.className = 'simple';
   assertEquals('simple', el.className);
@@ -2011,11 +2042,13 @@ jsunitRegister('testStrangeIds', function testStrangeIds() {
       "<input id='test-strange-ids-1' name='tag[]'>\n"
       + "<input id='test-strange-ids-2' name='form$location'>\n"
       + "<span id='23skiddoo'></span>\n"
-      + "<span id='8675309'></span>\n");
+      + "<span id='8675309'></span>\n"
+      + "<span id='$-.:;()[]='></span>\n");
   assertEquals('tag[]', $('test-strange-ids-1').name);
   assertEquals('form$location', $('test-strange-ids-2').name);
   assertEquals('23skiddoo', $('23skiddoo').id);
   assertEquals('8675309', $('8675309').id);
+  assertEquals('$-.:;()[]=', $('$-.:;()[]=').id);
   pass('test-strange-ids');
 });
 
@@ -2226,6 +2259,12 @@ jsunitRegister('testCloneNodeCustomAttrs', function testCloneNodeCustomAttrs() {
   assertTrue('original attr still exists', node.hasAttribute('bogus'));
 
   pass('test-clone-node-custom-attrs');
+});
+
+jsunitRegister('testCompatMode',
+               function testCompatMode() {
+  assertEquals('CSS1Compat', document.compatMode);
+  pass('test-compat-mode');
 });
 
 jsunitRegister('testCustomEvents',
@@ -2857,12 +2896,12 @@ function testAsyncModuleLoader(load, includeScript, prefix) {
   }
 }
 
-jsunitRegister('testXhrModuleLoader', 
+jsunitRegister('testXhrModuleLoader',
                function testXhrModuleLoader() {
   testAsyncModuleLoader(xhrModuleLoad, xhrIncludeScript, "xhr");
 });
 
-jsunitRegister('testScriptModuleLoader', 
+jsunitRegister('testScriptModuleLoader',
                function testScriptModuleLoader() {
   testAsyncModuleLoader(scriptModuleLoad, scriptIncludeScript, "script");
 });
@@ -2872,14 +2911,14 @@ function testAsyncModuleLoader2(load, prefix) {
   if (!valijaMode) {
     var m = load.async('foo/b.co');
     var f1 = function(module) {
-      var r = module({x: 1, y: 2, load: { async: function(src) 
-          { return load.async('foo/' + src); } }, 
+      var r = module({x: 1, y: 2, load: { async: function(src)
+          { return load.async('foo/' + src); } },
           Q: Q, fail: fail});
-      Q.when(r, function(result) { 
+      Q.when(r, function(result) {
                   assertEquals(result, 5);
                   pass(prefix + '-module-loader-2');
                 },
-                function(reason) { 
+                function(reason) {
                   fail("Waiting for result failed, " + reason);
                 });
     };
@@ -2889,15 +2928,15 @@ function testAsyncModuleLoader2(load, prefix) {
     Q.when(m, f1, f2);
   } else {
     pass(prefix + '-module-loader-2');
-  }  
+  }
 }
 
-jsunitRegister('testXhrModuleLoader2', 
+jsunitRegister('testXhrModuleLoader2',
         function testXhrModuleLoader2() {
   testAsyncModuleLoader2(xhrModuleLoad, "xhr");
 });
 
-jsunitRegister('testScriptModuleLoader2', 
+jsunitRegister('testScriptModuleLoader2',
                function testScriptModuleLoader2() {
   testAsyncModuleLoader2(scriptModuleLoad, "script");
 });
@@ -2907,21 +2946,20 @@ function testAsyncModuleLoaderFailure(load, includeScript, prefix) {
   var f1 = function(module) {
       fail('It should not be resolved.');
   };
-  
+
   var f2 = function(reason) {
-    if (reason.substring(0, 26) === 'Retrieving module failed, ') { 
+    if (reason.substring(0, 22) === 'Retrieving the module ') {
       pass(prefix + '-module-loader-failure');
     }
   };
-  
+
   if (!valijaMode) {
     var m = xhrModuleLoad.async('b.co');
     Q.when(m, f1, f2);
-  }
-  else {
+  } else {
     var m = xhrIncludeScript.async('foo/x.vo');
     Q.when(m, f1, f2);
-  }  
+  }
 }
 
 jsunitRegister('testXhrModuleLoaderFailure',
@@ -2941,20 +2979,64 @@ jsunitRegister('testRecursiveModule',
     var m = scriptModuleLoad.async('recursion.co');
     var f1 = function(module) {
       var r = module({x: 5, load: scriptModuleLoad, Q: Q});
-        Q.when(r, function(result) { 
+        Q.when(r, function(result) {
                     assertEquals(result, 120);
                     pass('recursive-module');
                   },
-                  function(reason) { 
+                  function(reason) {
                     fail("Waiting for result failed, " + reason);
                   });
       };
-    var f2 = function(reason) { 
+    var f2 = function(reason) {
       fail("Loading module Recursion failed, " + reason);
     };
     Q.when(m, f1, f2);
   } else {
     pass('recursive-module');
+  }
+});
+
+jsunitRegister('testServerJsModule',
+        function testServerJsModule() {
+  if (valijaMode) {
+    var m = serverJsModuleLoad('foo/inc.vo');
+    Q.when(m, function(module) {
+                var r = module.inc(env.x);
+                Q.when(r, function(result) {
+                            assertEquals(result, 7);
+                            pass("server-js-module");
+                          },
+                          function(reason) {
+                            fail(reason);
+                          });
+                  },
+                  function(reason) {
+                    fail("Loading module inc failed, " + reason);
+                  });
+  } else {
+    pass("server-js-module");
+  }
+});
+
+jsunitRegister('testServerJsRecursiveModule',
+        function testServerJsRecursiveModule() {
+  if (valijaMode) {
+    var m = serverJsModuleLoad('serverJsRecursion.vo');
+    Q.when(m, function(module) {
+                var r = module.isNonNegative(env.x);
+                Q.when(r, function(result) {
+                            assertEquals(result, true);
+                            pass("server-js-recursive-module");
+                          },
+                          function(reason) {
+                            fail("Waiting for result failed, " + reason);
+                          });
+              },
+              function(reason) {
+                fail("Loading module Recursion failed, " + reason);
+              });
+  } else {
+    pass("server-js-recursive-module");
   }
 });
 

@@ -177,9 +177,9 @@ public class DefaultValijaRewriter extends Rewriter {
         return NONE;
       }
     },
-    
+
     // static module loading
-    
+
     new Rule() {
       @Override
       @RuleDescription(
@@ -193,8 +193,8 @@ public class DefaultValijaRewriter extends Rewriter {
         if (bindings != null && scope.isOuter("includeScript")) {
           ParseTreeNode arg = bindings.get("arg");
           if (arg instanceof StringLiteral) {
-            return substV("arg", 
-                new StringLiteral(FilePosition.UNKNOWN, 
+            return substV("arg",
+                new StringLiteral(FilePosition.UNKNOWN,
                     ((StringLiteral) arg).getUnquotedValue()));
           } else {
             mq.addMessage(
@@ -206,7 +206,7 @@ public class DefaultValijaRewriter extends Rewriter {
         return NONE;
       }
     },
-    
+
     ////////////////////////////////////////////////////////////////////////
     // Module envelope
     ////////////////////////////////////////////////////////////////////////
@@ -271,7 +271,7 @@ public class DefaultValijaRewriter extends Rewriter {
             "this variable to a new anonymous function every time control re-enters " +
             "the enclosing block." +
             "\n" +
-            "Note that ES3.1 and ES4 specify a better and safer semantics -- block " +
+            "Note that ES-Harmony will specify a better and safer semantics -- block " +
             "level lexical scoping -- that we'd like to adopt into Caja eventually. " +
             "However, it so challenging to implement this semantics by " +
             "translation to currently-implemented JavaScript that we provide " +
@@ -1391,13 +1391,11 @@ public class DefaultValijaRewriter extends Rewriter {
           substitutes="$v.construct(RegExp, [@pattern, @modifiers?])")
       public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
         if (node instanceof RegexpLiteral) {
-          RegexpLiteral re = (RegexpLiteral) node;
-          StringLiteral pattern = StringLiteral.valueOf(
-              re.getFilePosition(), re.getMatchText());
+          RegexpLiteral.RegexpWrapper re = ((RegexpLiteral) node).getValue();
+          FilePosition pos = node.getFilePosition();
+          StringLiteral pattern = StringLiteral.valueOf(pos, re.getMatchText());
           StringLiteral modifiers = !"".equals(re.getModifiers())
-              ? StringLiteral.valueOf(
-                  FilePosition.endOf(re.getFilePosition()), re.getModifiers())
-              : null;
+              ? StringLiteral.valueOf(pos, re.getModifiers()) : null;
           return substV(
               "pattern", pattern,
               "modifiers", modifiers);

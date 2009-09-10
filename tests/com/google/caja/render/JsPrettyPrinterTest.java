@@ -49,6 +49,36 @@ public class JsPrettyPrinterTest extends CajaTestCase {
     assertRendered("{ foo(); }", "foo();");
   }
 
+  public final void testLongLines() throws Exception {
+    assertRendered(
+        ""
+        + "{ cdefgh10abcdefgh20abcdefgh30abcdefgh40"
+        + "abcdefgh50abcdefgh60abcdefgh70abcd(); }",
+        ""
+        + "  cdefgh10abcdefgh20abcdefgh30abcdefgh40"
+        + "abcdefgh50abcdefgh60abcdefgh70abcd();"
+        );
+    assertRendered(
+        ""
+        + "{ cdefgh10abcdefgh20abcdefgh30abcdefgh40"
+        + "abcdefgh50abcdefgh60abcdefgh70abcde();\n"
+        + "}",
+        ""
+        + "  cdefgh10abcdefgh20abcdefgh30abcdefgh40"
+        + "abcdefgh50abcdefgh60abcdefgh70abcde();"
+        );
+    assertRendered(
+        ""
+        + "{\n"
+        + "  cdefgh10abcdefgh20abcdefgh30abcdefgh40"
+        + "abcdefgh50abcdefgh60abcdefgh70abcdefgh()\n"
+        + "    ; }",
+        ""
+        + "  cdefgh10abcdefgh20abcdefgh30abcdefgh40"
+        + "abcdefgh50abcdefgh60abcdefgh70abcdefgh();"
+        );
+  }
+
   public final void testSemisInsideParents() throws Exception {
     assertRendered(
         "{\n  for (var i = 0, n = a.length; i < n; ++i) {\n"
