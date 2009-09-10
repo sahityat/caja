@@ -4055,7 +4055,8 @@ function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   }
   switch (typeof handler) {
     case 'string':
-      handler = imports.$v ? imports.$v.ro(handler) : imports[handler];
+      handler = (___.canRead(imports, '$v') && imports.$v.ro(handler))
+           || ___.readPub(imports, handler);
       break;
     case 'function': case 'object':
       break;
