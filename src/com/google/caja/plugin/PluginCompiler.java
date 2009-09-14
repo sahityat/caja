@@ -124,9 +124,9 @@ public final class PluginCompiler {
 
     List<Pipeline.Stage<Jobs>> stages = compilationPipeline.getStages();
     stages.add(new RewriteHtmlStage());
-    stages.add(new SanitizeHtmlStage(htmlSchema));
     stages.add(new ValidateCssStage(cssSchema, htmlSchema));
     stages.add(new RewriteCssStage());
+    stages.add(new SanitizeHtmlStage(htmlSchema));
     stages.add(new CompileHtmlStage(cssSchema, htmlSchema));
     stages.add(new OpenTemplateStage());
     stages.add(new ConsolidateCodeStage());

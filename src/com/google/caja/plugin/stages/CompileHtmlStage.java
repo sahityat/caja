@@ -24,7 +24,6 @@ import com.google.caja.plugin.Dom;
 import com.google.caja.plugin.Job;
 import com.google.caja.plugin.Jobs;
 import com.google.caja.plugin.templates.TemplateCompiler;
-import com.google.caja.plugin.templates.TemplateSanitizer;
 import com.google.caja.reporting.MessageQueue;
 import com.google.caja.util.Pair;
 import com.google.caja.util.Pipeline;
@@ -76,9 +75,7 @@ public final class CompileHtmlStage implements Pipeline.Stage<Jobs> {
 
     if (!ihtmlRoots.isEmpty() || !stylesheets.isEmpty()) {
       MessageQueue mq = jobs.getMessageQueue();
-  
-      TemplateSanitizer ts = new TemplateSanitizer(htmlSchema, mq);
-      for (Node ihtmlRoot : ihtmlRoots) { ts.sanitize(ihtmlRoot); }
+
       TemplateCompiler tc = new TemplateCompiler(
           ihtmlRoots, stylesheets, cssSchema, htmlSchema,
           jobs.getPluginMeta(), jobs.getMessageContext(), mq);

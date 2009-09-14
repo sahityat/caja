@@ -20,8 +20,6 @@ import com.google.caja.plugin.Job;
 import com.google.caja.plugin.Jobs;
 import com.google.caja.util.Pipeline;
 
-import java.util.ListIterator;
-
 /**
  * Compiles CSS style-sheets to JavaScript which outputs the same CSS, but with
  * rules only affecting nodes that are children of a class whose name contains
@@ -31,10 +29,7 @@ import java.util.ListIterator;
  */
 public final class RewriteCssStage implements Pipeline.Stage<Jobs> {
   public boolean apply(Jobs jobs) {
-    for (ListIterator<Job> it = jobs.getJobs().listIterator(); it.hasNext();) {
-      Job job = it.next();
-      if (job.getType() != Job.JobType.CSS) { continue; }
-
+    for (Job job : jobs.getJobsByType(Job.JobType.CSS)) {
       new CssRuleRewriter(jobs.getPluginMeta()).rewriteCss(
           job.getRoot().cast(CssTree.StyleSheet.class).node);
     }
