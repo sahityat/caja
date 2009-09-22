@@ -306,7 +306,7 @@
         node = node.node___;
         node.appendChild(document.createTextNode('Passed ' + id));
         var cl = node.className || '';
-        cl = cl.replace(/clickme|waiting/, '');
+        cl = cl.replace(/\b(clickme|waiting)\b\s*/g, '');
         cl += ' passed';
         node.className = cl;
       }, 'pass');
