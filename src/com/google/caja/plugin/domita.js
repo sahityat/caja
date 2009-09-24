@@ -808,7 +808,9 @@ var attachDocumentStub = (function () {
         });
 
     /**
-     * If str ends with suffix, return the part of str before suffix.
+     * If str ends with suffix,
+     * and str is not identical to suffix,
+     * then return the part of str before suffix.
      * Otherwise return fail.
      */
     function unsuffix(str, suffix, fail) {
@@ -822,10 +824,11 @@ var attachDocumentStub = (function () {
     }
 
     var ID_LIST_PARTS_PATTERN = new RegExp(
-      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']|$)', 'g');
+      '([^' + XML_SPACE + ']+)([' + XML_SPACE + ']+|$)', 'g');
 
     /** Convert a real attribute value to the value seen in a sandbox. */
     function virtualizeAttributeValue(attrType, realValue) {
+      realValue = String(realValue);
       switch (attrType) {
         case html4.atype.GLOBAL_NAME:
         case html4.atype.ID:
@@ -834,7 +837,7 @@ var attachDocumentStub = (function () {
         case html4.atype.IDREFS:
           return realValue.replace(ID_LIST_PARTS_PATTERN,
               function(_, id, spaces) {
-                return unsuffix(id, idSuffix, '') + spaces;
+                return unsuffix(id, idSuffix, '') + (spaces ? ' ' : '');
               });
         default:
           return realValue;
@@ -907,7 +910,9 @@ var attachDocumentStub = (function () {
           value = String(value);
           if (value && isValidIdList(value)) {
             return value.replace(ID_LIST_PARTS_PATTERN,
-                function(_, id, spaces) { return id + idSuffix + spaces; });
+                function(_, id, spaces) {
+                  return id + idSuffix + (spaces ? ' ' : '');
+                });
           }
           return null;
         case html4.atype.LOCAL_NAME:

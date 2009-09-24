@@ -146,14 +146,14 @@ public class AlphaRenamingTest extends CajaTestCase {
 
   public final void testLocalThis() throws Exception {
     assertRenamed(
-        "(function () { return this; })",
+        "(function () { var a = this; return a; })",
         "(function () { return this; })");
     assertNoErrors();
   }
 
   public final void testLocalArguments() throws Exception {
     assertRenamed(
-        "(function () { return arguments; })",
+        "(function () { var a = arguments; return a; })",
         "(function () { return arguments; })");
     assertNoErrors();
   }
@@ -242,8 +242,10 @@ public class AlphaRenamingTest extends CajaTestCase {
     assertRenamed(
         ""
         + "(function () {"
-        + "  var arguments = arguments;"
-        + "  return arguments;"
+        // This matches the behavior of all major interpreters except Opera.
+        + "  var a = arguments;"
+        + "  var a = a;"
+        + "  return a;"
         + "})",
         ""
         + "(function () {"
@@ -297,6 +299,45 @@ public class AlphaRenamingTest extends CajaTestCase {
             Arrays.asList(MessagePart.Factory.valueOf("___"))));
     // If ___ is provided as a global, it is allowed.
     assertRenamed("___.foo()", "___.foo()", "___");
+    assertNoErrors();
+  }
+
+  public final void testRenamingOfPseudoKeywords() throws Exception {
+    assertRenamed(
+        ""
+        + "[function (a) { var a = arguments; return a; }"
+        + " function () { var b = arguments; return b; }]",
+        ""
+        + "[function (arguments) { return arguments; },"
+        + " function () { return arguments; }]");
+    assertRenamed(
+        ""
+        + "[function (b) { return b; }"
+        + " function () { return a; }]",
+        ""
+        + "[function (undefined) { return undefined; },"
+        + " function () { return undefined; }]",
+        "undefined");
+    assertMessage(
+        true, MessageType.DUPLICATE_FORMAL_PARAM, MessageLevel.ERROR,
+        MessagePart.Factory.valueOf("arguments"));
+    assertMessage(
+        true, RewriterMessageType.CANNOT_MASK_IDENTIFIER,
+        MessageLevel.FATAL_ERROR, MessagePart.Factory.valueOf("arguments"));
+    assertNoErrors();
+  }
+
+  public final void testDuplicateFormals() throws Exception {
+    assertRenamed(
+        "function (a, b, a) { return a - b; }",
+        "function (x, y, x) { return x - y; }");
+    assertMessage(
+        true, MessageType.DUPLICATE_FORMAL_PARAM, MessageLevel.ERROR,
+        MessagePart.Factory.valueOf("x"));
+    // From the sanity check.
+    assertMessage(
+        true, MessageType.DUPLICATE_FORMAL_PARAM, MessageLevel.ERROR,
+        MessagePart.Factory.valueOf("a"));
     assertNoErrors();
   }
 

@@ -26,6 +26,7 @@ import com.google.caja.parser.js.FormalParam;
 import com.google.caja.parser.js.FunctionConstructor;
 import com.google.caja.parser.js.FunctionDeclaration;
 import com.google.caja.parser.js.Identifier;
+import com.google.caja.parser.js.MultiDeclaration;
 import com.google.caja.parser.js.NullLiteral;
 import com.google.caja.parser.js.Reference;
 import com.google.caja.parser.js.Statement;
@@ -81,10 +82,9 @@ final class AlphaRenamingRewriter extends Rewriter {
                       + " for function names, formals, and locals"),
             reason="",
             matches="function @name?(@params*) { @body* }",
-            substitutes="function @name?(@params*) { @selfDecl?; @body* }")
+            substitutes="function @name?(@params*) { @headDecls?; @body* }")
         public ParseTreeNode fire(ParseTreeNode node, Scope scope) {
           FunctionConstructor fc;
-
           if (node instanceof FunctionConstructor) {
             fc = (FunctionConstructor) node;
           } else if (node instanceof FunctionDeclaration) {
@@ -98,15 +98,39 @@ final class AlphaRenamingRewriter extends Rewriter {
             NameContext<String, ?> context = contexts.get(scope);
             NameContext<String, ?> newContext = context.makeChildContext();
             Scope newScope = Scope.fromFunctionConstructor(scope, fc);
+            List<Declaration> headDecls = Lists.newArrayList();
+
+            if (newScope.hasFreeThis()) {
+              NameContext.VarInfo<String, ?> vi;
+              try {
+                vi = newContext.declare("this", FilePosition.UNKNOWN);
+              } catch (NameContext.RedeclarationException ex) {
+                // Should never occur since locals must be a set.
+                throw new RuntimeException(ex);
+              }
+              headDecls.add((Declaration) QuasiBuilder.substV(
+                  "var @newName = this",
+                  "newName", new Identifier(FilePosition.UNKNOWN, vi.newName)));
+            }
+            if (newScope.hasFreeArguments()) {
+              NameContext.VarInfo<String, ?> vi;
+              try {
+                vi = newContext.declare("arguments", FilePosition.UNKNOWN);
+              } catch (NameContext.RedeclarationException ex) {
+                // Should never occur since locals must be a set.
+                throw new RuntimeException(ex);
+              }
+              headDecls.add((Declaration) QuasiBuilder.substV(
+                  "var @newName = arguments",
+                  "newName", new Identifier(FilePosition.UNKNOWN, vi.newName)));
+            }
+
             for (String local : newScope.getLocals()) {
-              if (!"this".equals(local) && !"arguments".equals(local)) {
-                try {
-                  newContext.declare(
-                      local, newScope.getLocationOfDeclaration(local));
-                } catch (NameContext.RedeclarationException ex) {
-                  // Should never occur since locals must be a set.
-                  throw new RuntimeException(ex);
-                }
+              try {
+                newContext.declare(
+                    local, newScope.getLocationOfDeclaration(local));
+              } catch (NameContext.RedeclarationException ex) {
+                // Might occur if a var named arguments is defined.
               }
             }
             contexts.put(newScope, newContext);
@@ -127,37 +151,98 @@ final class AlphaRenamingRewriter extends Rewriter {
             List<FormalParam> newFormals = Lists.newArrayList();
             for (FormalParam p : fc.getParams()) {
               if (!isSynthetic(p.getIdentifier())) {
+                NameContext.VarInfo<String, ?> v
+                    = newContext.lookup(p.getIdentifierName());
+                if (v == null) {
+                  // Occurs when an invalid parameter appears,
+                  // e.g., function (arguments) { ... }
+                  try {
+                    v = newContext.declare(
+                        p.getIdentifierName(), p.getFilePosition());
+                  } catch (NameContext.RedeclarationException ex) {
+                    // If it was previously declared then v wouldn't be null.
+                    throw new RuntimeException(ex);
+                  }
+                }
                 FormalParam newP = new FormalParam(new Identifier(
-                    p.getFilePosition(),
-                    newContext.lookup(p.getIdentifierName()).newName));
+                    p.getFilePosition(), v.newName));
                 newFormals.add(newP);
               } else {
                 newFormals.add(p);
               }
             }
 
-            Declaration selfDecl = null;
+            // For a declaration, a name is normally introduced in both the
+            // scope containing the declaration, and the function body scope.
+            // We produce a declaration with the outer name, but in the inner
+            // scope the function name should refer to the function itself.
+            // The only exception is that if there is a local declaration
+            // inside the local scope that masks the function name, then we
+            // should not clobber it.
+            // Examples:
+            //     (function f() {
+            //       var f = 0;
+            //       return f;
+            //     })() === 0
+            // and
+            //     (function f() {
+            //       function f() { return 0; }
+            //       return f();
+            //     })() === 0
+            //
+            // Because the var f or inner function f masks the outer function f,
+            // the name "f" should not be considered to refer to the function
+            // within its body. The condition
+            //     newScope.isFunction(name.getName())
+            //     && !newScope.isDeclaredFunction(name.getName())
+            // checks that the name still refers to the outer function, not a
+            // variable or a different function that is declared within the
+            // body.
+            // The second clause is required because isDeclaredFunction implies
+            // isDeclaredFunction but we need to distinguish the two cases.
+            // For a declaration, a name is normally introduced in both the
+            // scope containing the declaration, and the function body scope.
+            // We produce a declaration with the outer name, but in the inner
+            // scope the function name should refer to the function itself.
+            // The only exception is that if there is a local declaration
+            // inside the local scope that masks the function name, then we
+            // should not clobber it.
+            // Examples:
+            //     (function f() {
+            //       var f = 0;
+            //       return f;
+            //     })() === 0
+            // and
+            //     (function f() {
+            //       function f() { return 0; }
+            //       return f();
+            //     })() === 0
+            //
+            // Because the var f or inner function f masks the outer function f,
+            // the name "f" should not be considered to refer to the function
+            // within its body. The condition
+            //     newScope.isFunction(name.getName())
+            //     && !newScope.isDeclaredFunction(name.getName())
+            // checks that the name still refers to the outer function, not a
+            // variable or a different function that is declared within the
+            // body.
+            // The second clause is required because isDeclaredFunction implies
+            // isFunction but we need to distinguish the two cases.
             if (isDeclaration && !isSynthetic(name)
-                // If there is a local declaration inside the local scope that
-                // masks the function name, then don't clobber it.
                 && newScope.isFunction(name.getName())
                 && !newScope.isDeclaredFunction(name.getName())) {
-              // For a declaration, a name is introduced in both the scope
-              // containing the function, and the function body scope.
-              // We produce a declaration with the outer name, but in the inner
-              // scope, the function name should always refer to itself.
-              selfDecl = (Declaration) QuasiBuilder.substV(
+              headDecls.add((Declaration) QuasiBuilder.substV(
                   "var @innerName = @outerName;",
                   "outerName", new Reference(rewrittenName),
                   "innerName", new Identifier(
                       name.getFilePosition(),
-                      newContext.lookup(name.getName()).newName));
+                      newContext.lookup(name.getName()).newName)));
               // TODO(mikesamuel): skip if the self name is never used.
             }
 
             FunctionConstructor out = (FunctionConstructor) substV(
                 "name", rewrittenName,
-                "selfDecl", selfDecl,
+                "headDecls", optionalDeclarations(headDecls),
                 "params", new ParseTreeNodeContainer(newFormals),
                 "body", expandAll(bindings.get("body"), newScope));
             out.setFilePosition(fc.getFilePosition());
@@ -254,7 +339,7 @@ final class AlphaRenamingRewriter extends Rewriter {
         @Override
         @RuleDescription(
             name="thisReference",
-            synopsis="Don't rewrite 'this'.",
+            synopsis="Disallow this in the global scope.",
             reason="The declaration cannot be rewritten.",
             matches="this",
             substitutes="this")
@@ -266,7 +351,6 @@ final class AlphaRenamingRewriter extends Rewriter {
                   node.getFilePosition());
               return new NullLiteral(node.getFilePosition());
             }
-            return node;
           }
           return NONE;
         }
@@ -275,7 +359,7 @@ final class AlphaRenamingRewriter extends Rewriter {
         @Override
         @RuleDescription(
             name="argumentsReference",
-            synopsis="Don't rewrite 'arguments'.",
+            synopsis="Disallow arguments in the global scope.",
             reason="The declaration cannot be rewritten.",
             matches="arguments",
             substitutes="arguments")
@@ -287,7 +371,6 @@ final class AlphaRenamingRewriter extends Rewriter {
                   node.getFilePosition());
               return new NullLiteral(node.getFilePosition());
             }
-            return node;
           }
           return NONE;
         }
@@ -365,5 +448,13 @@ final class AlphaRenamingRewriter extends Rewriter {
         }
       },
     });
+  }
+
+  private static Statement optionalDeclarations(List<Declaration> decls) {
+    switch (decls.size()) {
+      case 0: return null;
+      case 1: return decls.get(0);
+      default: return new MultiDeclaration(FilePosition.UNKNOWN, decls);
+    }
   }
 }
