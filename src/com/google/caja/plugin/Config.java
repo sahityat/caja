@@ -165,7 +165,8 @@ public final class Config {
     return new CssSchema(
         whitelist(cssPropertyWhitelistUri, mq),
         whitelist(URI.create(
-            "resource:///com/google/caja/lang/css/css21-fns.json"), mq));
+            "resource:///com/google/caja/lang/css/css-extensions-fns.json"),
+            mq));
   }
 
   public HtmlSchema getHtmlSchema(MessageQueue mq) {
@@ -204,7 +205,7 @@ public final class Config {
                 usage("File \"" + input + "\" does not exist", stderr);
                 return false;
               }
-              if (!inputFile.isFile()) {
+              if (!inputFile.canRead() || inputFile.isDirectory()) {
                 usage("File \"" + input + "\" is not a regular file", stderr);
                 return false;
               }
@@ -247,7 +248,7 @@ public final class Config {
 
         if (outputJsFile == null) {
           usage("Please specify js output via " + OUTPUT_JS.getLongOpt(),
-              stderr);
+                stderr);
         }
         outputHtmlFile = cl.getOptionValue(OUTPUT_HTML.getOpt()) == null
             ? toFileWithExtension(inputUri, "out.html")
@@ -255,20 +256,22 @@ public final class Config {
 
         if (outputHtmlFile == null) {
           usage("Please specify js output via " + OUTPUT_HTML.getLongOpt(),
-              stderr);
+                stderr);
         }
       }
 
       try {
         cssPropertyWhitelistUri = new URI(cl.getOptionValue(
             CSS_PROPERTY_WHITELIST.getOpt(),
-            "resource:///com/google/caja/lang/css/css21.json"));
+            "resource:///com/google/caja/lang/css/css-extensions.json"));
         htmlAttributeWhitelistUri = new URI(cl.getOptionValue(
             HTML_ATTRIBUTE_WHITELIST.getOpt(),
-            "resource:///com/google/caja/lang/html/html4-attributes.json"));
+            "resource:///com/google/caja/lang/html"
+            + "/html4-attributes-extensions.json"));
         htmlElementWhitelistUri = new URI(cl.getOptionValue(
             HTML_ELEMENT_WHITELIST.getOpt(),
-            "resource:///com/google/caja/lang/html/html4-elements.json"));
+            "resource:///com/google/caja/lang/html"
+            + "/html4-elements-extensions.json"));
 
         if (cl.getOptionValue(BASE_URI.getOpt()) != null) {
           baseUri = new URI(cl.getOptionValue(BASE_URI.getOpt()));
@@ -314,7 +317,7 @@ public final class Config {
 
   public void usage(String msg, PrintWriter out) {
     out.println(BuildInfo.getInstance().getBuildInfo());
-      out.println();
+    out.println();
     if (msg != null && !"".equals(msg)) {
       out.println(msg);
       out.println();

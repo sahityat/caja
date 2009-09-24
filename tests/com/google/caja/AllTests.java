@@ -31,6 +31,7 @@ import com.google.caja.lexer.DecodingCharProducerTest;
 import com.google.caja.lexer.FilePositionTest;
 import com.google.caja.lexer.HtmlLexerTest;
 import com.google.caja.lexer.JsLexerTest;
+import com.google.caja.lexer.PositionInfererTest;
 import com.google.caja.lexer.PunctuationTrieTest;
 import com.google.caja.lexer.SourceBreaksTest;
 import com.google.caja.lexer.escaping.EscapingTest;
@@ -43,6 +44,7 @@ import com.google.caja.parser.css.CssParserTest;
 import com.google.caja.parser.css.CssPropertySignatureTest;
 import com.google.caja.parser.css.CssTreeTest;
 import com.google.caja.parser.html.DomParserTest;
+import com.google.caja.parser.html.HtmlQuasiBuilderTest;
 import com.google.caja.parser.html.NodesTest;
 import com.google.caja.parser.js.ExpressionTest;
 import com.google.caja.parser.js.FuzzedParserTest;
@@ -96,6 +98,7 @@ import com.google.caja.util.AbbreviatorTest;
 import com.google.caja.util.CapturingReaderTest;
 import com.google.caja.util.CollectionsTest;
 import com.google.caja.util.JoinTest;
+import com.google.caja.util.NameTest;
 import com.google.caja.util.RhinoAssertsTest;
 import com.google.caja.util.SparseBitSetTest;
 import com.google.caja.util.StringsTest;
@@ -155,6 +158,7 @@ public class AllTests {
         HtmlCompiledPluginTest.class,
         HtmlEmitterTest.class,
         HtmlLexerTest.class,
+        HtmlQuasiBuilderTest.class,
         HtmlSchemaTest.class,
         HtmlSnippetProducerTest.class,
         IhtmlSanityCheckerTest.class,
@@ -173,12 +177,14 @@ public class AllTests {
         LocalizerTest.class,
         MatchTest.class,
         ModuleFormatTest.class,
+        NameTest.class,
         NodesTest.class,
         NumberLiteralTest.class,
         OpenTemplateStageTest.class,
         ParseTreeNodeTest.class,
         ParserBaseTest.class,
         ParserTest.class,
+        PositionInfererTest.class,
         PunctuationTrieTest.class,
         QuasiBuilderTest.class,
         RRuleTest.class,

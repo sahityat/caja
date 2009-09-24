@@ -2693,24 +2693,31 @@ var safeJSON;
   /**
    * Produces a function module given an object literal module 
    */
-  function prepareModule(module) {
+  function prepareModule(module, load) {
     function theModule(imports) {
       // The supplied 'imports' contain arguments supplied by the caller of the
       // module. We need to add the primordials (Array, Object, ...) to these
       // before invoking the Cajita module.
       var completeImports = copy(sharedImports);
+      completeImports.load = load;
       forOwnKeys(imports, markFuncFreeze(function(k, v) {
         completeImports[k] = v;
       }));
       return module.instantiate(___, primFreeze(completeImports));
     }
     theModule.FUNC___ = 'theModule';
-      
-    forOwnKeys(module, markFuncFreeze(function(k, v) {
-      if (k != 'instantiate') {
-        setStatic(theModule, k, v);
-      }
-    }));
+
+    // Whitelist certain module properties as visible to Cajita code. These
+    // are all primitive values that do not allow two Cajita entities with
+    // access to the same module object to communicate.
+    setStatic(theModule, 'cajolerName', module.cajolerName);
+    setStatic(theModule, 'cajolerVersion', module.cajolerName);
+    setStatic(theModule, 'cajoledDate', module.cajolerName);
+    setStatic(theModule, 'moduleId', module.moduleId);
+    // The below is a transitive freeze because includedModules is an array
+    // of strings.
+    setStatic(theModule, 'includedModules', ___.freeze(module.includedModules));
+
     return primFreeze(theModule);
   }
 
