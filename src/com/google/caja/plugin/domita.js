@@ -1083,6 +1083,14 @@ var attachDocumentStub = (function () {
 
     function tameRelatedNode(node, editable, tameNodeCtor) {
       if (node === null || node === void 0) { return null; }
+      if (node === tameDocument.body___) {
+        if (tameDocument.editable___ && !editable) {
+          // FIXME: return a non-editable version of body.
+          throw new Error(NOT_EDITABLE);
+        }
+        return tameDocument.getBody();
+      }
+
       // Catch errors because node might be from a different domain.
       try {
         var docElem = node.ownerDocument.documentElement;
@@ -1503,23 +1511,16 @@ var attachDocumentStub = (function () {
       return defaultTameNode(this.node___.lastChild, this.childrenEditable___);
     };
     TameBackedNode.prototype.getNextSibling = function () {
-      // TODO(mikesamuel): replace with cursors so that subtrees are delegable
-      return defaultTameNode(this.node___.nextSibling, this.editable___);
+      return tameRelatedNode(this.node___.nextSibling, this.editable___,
+                             defaultTameNode);
     };
     TameBackedNode.prototype.getPreviousSibling = function () {
-      // TODO(mikesamuel): replace with cursors so that subtrees are delegable
-      return defaultTameNode(this.node___.previousSibling, this.editable___);
+      return tameRelatedNode(this.node___.previousSibling, this.editable___,
+                             defaultTameNode);
     };
     TameBackedNode.prototype.getParentNode = function () {
-      var parent = this.node___.parentNode;
-      if (parent === tameDocument.body___) {
-        if (tameDocument.editable___ && !this.editable___) {
-          // FIXME: return a non-editable version of body.
-          throw new Error(NOT_EDITABLE);
-        }
-        return tameDocument.getBody();
-      }
-      return tameRelatedNode(parent, this.editable___, defaultTameNode);
+      return tameRelatedNode(
+          this.node___.parentNode, this.editable___, defaultTameNode);
     };
     TameBackedNode.prototype.getElementsByTagName = function (tagName) {
       return tameGetElementsByTagName(
@@ -2254,13 +2255,20 @@ var attachDocumentStub = (function () {
       if (!html4.ELEMENTS.hasOwnProperty(tagName)) { throw new Error(); }
       var flags = html4.ELEMENTS[tagName];
       if (flags & html4.eflags.UNSAFE) { throw new Error(); }
-      var sanitizedHtml;
-      if (flags & html4.eflags.RCDATA) {
-        sanitizedHtml = html.normalizeRCData(String(htmlFragment || ''));
+      var isRcData = flags & html4.eflags.RCDATA;
+      var htmlFragmentString;
+      if (!isRcData && htmlFragment instanceof Html) {
+        htmlFragmentString = '' + safeHtml(htmlFragment);
+      } else if (htmlFragment === null) {
+        htmlFragmentString = '';
       } else {
-        sanitizedHtml = (htmlFragment instanceof Html
-                        ? safeHtml(htmlFragment)
-                        : sanitizeHtml(String(htmlFragment || '')));
+        htmlFragmentString = '' + htmlFragment;
+      }
+      var sanitizedHtml;
+      if (isRcData) {
+        sanitizedHtml = html.normalizeRCData(htmlFragmentString);
+      } else {
+        sanitizedHtml = sanitizeHtml(htmlFragmentString);
       }
       this.node___.innerHTML = sanitizedHtml;
       return htmlFragment;
@@ -4060,7 +4068,7 @@ function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   }
   switch (typeof handler) {
     case 'string':
-      handler = (___.canRead(imports, '$v') && imports.$v.ro(handler))
+      handler = (___.canRead(imports, '$v') && imports.$v.getOuters()[handler])
            || ___.readPub(imports, handler);
       break;
     case 'function': case 'object':
