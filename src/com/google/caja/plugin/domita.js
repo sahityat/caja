@@ -2092,6 +2092,17 @@ var attachDocumentStub = (function () {
         this.node___.focus();
       }
     };
+    // IE-specific method.  Sets the element that will have focus when the
+    // window has focus, without focusing the window.
+    TameElement.prototype.setActive = function () {
+      if (imports.isProcessingEvent___) {
+        this.node___.setActive();
+      }
+    };
+    // IE-specific method.
+    TameElement.prototype.hasFocus = function () {
+      this.node___.hasFocus();
+    };
     TameElement.prototype.getId = function () {
       return this.getAttribute('id') || '';
     };
@@ -2284,6 +2295,7 @@ var attachDocumentStub = (function () {
        ___.grantTypedMethod, TameElement.prototype,
        ['addEventListener', 'removeEventListener',
         'blur', 'focus',
+        'setActive', 'hasFocus',
         'getAttribute', 'setAttribute',
         'removeAttribute', 'hasAttribute',
         'getAttributeNode',
@@ -2896,13 +2908,21 @@ var attachDocumentStub = (function () {
       var e = this.event___;
       var t = e.relatedTarget;
       if (!t) {
-        if (e.type === 'mouseout') {
+        if (e.toElement) {
           t = e.toElement;
-        } else if (e.type === 'mouseover') {
+        } else if (e.fromElement) {
           t = e.fromElement;
         }
       }
       return tameRelatedNode(t, true, defaultTameNode);
+    };
+    // relatedTarget is read-only.  this dummy setter is because some code
+    // tries to workaround IE by setting a relatedTarget when it's not set.
+    // code in a sandbox can't tell the difference between "falsey because
+    // relatedTarget is not supported" and "falsey because relatedTarget is
+    // outside sandbox".
+    TameEvent.prototype.setRelatedTarget = function () {
+      return void 0;
     };
     TameEvent.prototype.getFromElement = function () {
       return tameRelatedNode(this.event___.fromElement, true, defaultTameNode);
@@ -4025,6 +4045,10 @@ var attachDocumentStub = (function () {
  */
 function plugin_dispatchEvent___(thisNode, event, pluginId, handler) {
   event = (event || window.event);
+  // support currentTarget on IE[678]
+  if (!event.currentTarget) {
+    event.currentTarget = thisNode;
+  }
   var sig = String(handler).match(/^function\b[^\)]*\)/);
   var imports = ___.getImports(pluginId);
   if (imports.domitaTrace___ & 0x1) {
