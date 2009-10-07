@@ -279,7 +279,7 @@
 </div>
 
 <div class="testcontainer" id="test-set-style"
-     style="z-index:1">test-set-style</div>
+     style="cursor:move">test-set-style</div>
 
 <div>Before
 <p class="testcontainer" id="test-class-names">I am inline.</p>
@@ -2017,18 +2017,22 @@ jsunitRegister('testComputedStyle',
 });
 
 jsunitRegister('testSetStyle', function testSetStyle() {
-  var el = document.getElementById('test-set-style');
-  // z-index is a string on ff, a number on ie
-  function zIndex(el) {
-    return String(directAccess.getComputedStyle(el, 'z-index'));
+  function cursor(el) {
+    return directAccess.getComputedStyle(el, 'cursor');
   }
-  assertEquals('1', zIndex(el));
-  el.style = 'z-index:2';
-  assertEquals('2', zIndex(el));
-  el.setAttribute('style', 'z-index:311');
-  assertEquals('311', zIndex(el));
+
+  var el = document.getElementById('test-set-style');
+  assertEquals('move', cursor(el));
+
+  el.style = 'cursor:wait';
+  assertEquals('wait', cursor(el));
+
   var value = el.getAttribute('style');
-  assertTrue(new RegExp('311').test(value));
+  assertTrue(new RegExp('wait').test(value));
+
+  el.setAttribute('style', 'cursor:help');
+  assertEquals('help', cursor(el));
+
   pass('test-set-style');
 });
 

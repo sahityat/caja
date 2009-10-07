@@ -386,14 +386,7 @@ var bridal = (function() {
         return value;
       }
     }
-    // IE always has an attribute node for valid HTML attributes.  Setting
-    // it this way avoids problems with setAttribute() on IE[67].
-    var node = element.getAttributeNode(name);
-    if (node) {
-      node.value = value;
-      return value;
-    }
-    node = element.ownerDocument.createAttribute(name);
+    var node = element.ownerDocument.createAttribute(name);
     node.value = value;
     element.setAttributeNode(node);
     return value;
