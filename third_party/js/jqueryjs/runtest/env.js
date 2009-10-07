@@ -515,6 +515,14 @@ var window = this;
     get id() { return this.getAttribute("id") || ""; },
     set id(val) { return this.setAttribute("id",val); },
 
+    getAttributeNode: function(name){
+      name = name.toLowerCase();
+      return this._dom.hasAttribute(name) ?
+        { name: name,
+          value: String(this._dom.getAttribute(name)) } :
+        null;
+    },
+
     getAttribute: function(name){
       name = name.toLowerCase();
       return this._dom.hasAttribute(name) ?
