@@ -519,7 +519,7 @@ var window = this;
       name = name.toLowerCase();
       return this._dom.hasAttribute(name) ?
         { name: name,
-          value: this._dom.getAttribute(name) } :
+          value: String(this._dom.getAttribute(name)) } :
         null;
     },
 
