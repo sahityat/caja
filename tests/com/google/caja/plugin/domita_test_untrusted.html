@@ -2612,7 +2612,7 @@ jsunitRegister('testAttributeNodes',
   }
 
   function checkScriptAttrNode(attrNode) {
-    if (attrNode == null || (!attrNode.specified && '' === attrNode.value)) {
+      if (attrNode == null || !attrNode.specified) {
       return;  // Works if node not present.
     }
     // If it is present, it had better be rewritten.

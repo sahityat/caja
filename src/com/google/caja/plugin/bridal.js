@@ -542,7 +542,7 @@ var bridal = (function() {
     if (element.hasAttribute) {  // Non IE
       return element.hasAttribute(name);
     } else {
-      var attr = getAttributeNode(element, name);
+      var attr = element.getAttributeNode(name);
       return attr !== null && attr.specified;
     }
   }
