@@ -278,6 +278,9 @@
   <div id="test-computed-style-invisible" class="invisible">Not here</div>
 </div>
 
+<div class="testcontainer" id="test-set-style"
+     style="z-index:1">test-set-style</div>
+
 <div>Before
 <p class="testcontainer" id="test-class-names">I am inline.</p>
 After
@@ -394,7 +397,7 @@ can test window.scrollBy with a positive x value with a visible effect.
  ><input type="checkbox" id="test-this-in-event-handlers-1" />
 </p>
 
-<p class="testcontainer" id="test-bug-1066">Bug 1066</p>
+<p class="testcontainer" id="test-for-attribute">for attribute</p>
 
 <div class="testcontainer" id="test-row-cell">
 Test row cell
@@ -2013,6 +2016,22 @@ jsunitRegister('testComputedStyle',
   pass('test-computed-style');
 });
 
+jsunitRegister('testSetStyle', function testSetStyle() {
+  var el = document.getElementById('test-set-style');
+  // z-index is a string on ff, a number on ie
+  function zIndex(el) {
+    return String(directAccess.getComputedStyle(el, 'z-index'));
+  }
+  assertEquals('1', zIndex(el));
+  el.style = 'z-index:2';
+  assertEquals('2', zIndex(el));
+  el.setAttribute('style', 'z-index:311');
+  assertEquals('311', zIndex(el));
+  var value = el.getAttribute('style');
+  assertTrue(new RegExp('311').test(value));
+  pass('test-set-style');
+});
+
 jsunitRegister('testClassNames', function testClassNames() {
 
   var el = document.getElementById('test-class-names');
@@ -2022,31 +2041,55 @@ jsunitRegister('testClassNames', function testClassNames() {
   el.className += ' inline';
 
   assertEquals('after class added',
-               'inline', window.getComputedStyle(el, null).display);
-  assertEquals('read className', 'testcontainer inline', el.className);
-
-  assertTrue('has class', el.hasAttribute('class'));
+      'inline', window.getComputedStyle(el, null).display);
+  assertEquals('testcontainer inline', el.className);
+  assertEquals('testcontainer inline', el.getAttribute('class'));
+  assertTrue(el.hasAttribute('class'));
 
   el.className = '$-.:;()[]=';
   assertEquals('$-.:;()[]=', el.className);
+  assertEquals('$-.:;()[]=', el.getAttribute('class'));
 
   el.className = '!@{} ok__1';
   assertEquals('!@{} ok__1', el.className);
+  assertEquals('!@{} ok__1', el.getAttribute('class'));
+
+  el.setAttribute('class', 'foo');
+  assertEquals('foo', el.className);
+  assertEquals('foo', el.getAttribute('class'));
 
   el.className = 'simple';
   assertEquals('simple', el.className);
+  assertEquals('simple', el.getAttribute('class'));
 
   el.className = 'ok bad__';
   assertEquals('set class "ok bad__"', 'simple', el.className);
+  assertEquals('set class "ok bad__"', 'simple', el.getAttribute('class'));
 
   el.className = 'ok bad__ ';
   assertEquals('set class "ok bad__ "', 'simple', el.className);
+  assertEquals('set class "ok bad__ "', 'simple', el.getAttribute('class'));
 
   el.className = 'bad__ ok';
   assertEquals('set class "bad__ ok"', 'simple', el.className);
+  assertEquals('set class "bad__ ok"', 'simple', el.getAttribute('class'));
+
+  el.setAttribute('class', 'bad__ ok2');
+  assertEquals('set class "bad__ ok2"', 'simple', el.className);
+  assertEquals('set class "bad__ ok2"', 'simple', el.getAttribute('class'));
 
   el.className = '';
   assertEquals('set class ""', '', el.className);
+  assertEquals('set class ""', '', el.getAttribute('class'));
+  assertTrue(el.hasAttribute('class'));
+
+  el.className = 'x';
+  assertEquals('x', el.getAttribute('class'));
+
+  el.setAttribute('class', '');
+  assertEquals('', el.className);
+  assertEquals('', el.getAttribute('class'));
+  assertTrue(el.hasAttribute('class'));
 
   pass('test-class-names');
 });
@@ -2759,15 +2802,19 @@ jsunitRegister('testThisInEventHandlers',
   directAccess.click(inp);
 });
 
-jsunitRegister('testBug1066', function testBug1066() {
+// http://code.google.com/p/google-caja/issues/detail?id=1066
+jsunitRegister('testForAttribute', function testBug1066() {
   var label = document.createElement('label');
+  assertFalse(label.hasAttribute('for'));
   label.setAttribute('for', 'X');
   assertEquals('X', label.getAttribute('for'));
   assertEquals('X', label.htmlFor);
+  assertTrue(label.hasAttribute('for'));
   label.htmlFor = 'Y';
   assertEquals('Y', label.getAttribute('for'));
   assertEquals('Y', label.htmlFor);
-  pass('test-bug-1066');
+  assertTrue(label.hasAttribute('for'));
+  pass('test-for-attribute');
 });
 
 jsunitRegister('testRowCell',

@@ -36,7 +36,6 @@ var bridal = (function() {
 
   var features = {
     attachEvent: !!(document.createElement('div').attachEvent),
-    setAttributeExtraParam: isIE,
     /**
      * Does the extended form of extendedCreateElement work?
      * From http://msdn.microsoft.com/en-us/library/ms536389.aspx :<blockquote>
@@ -378,27 +377,25 @@ var bridal = (function() {
    * @param {string} value the value of an attribute.
    */
   function setAttribute(element, name, value) {
-    switch (name) {
-      case 'style':
-        if ((typeof element.style.cssText) === 'string') {
-          // Setting the 'style' attribute does not work for IE, but
-          // setting cssText works on IE 6, Firefox, and IE 7.
-          element.style.cssText = value;
-          return value;
-        }
-        break;
-      case 'class':
-        element.className = value;
+    // In IE[67], element.style.cssText seems to be the only way to set the
+    // style.  This unfortunately fails when element.style is an input
+    // element instead of the style object.
+    if (name === 'style') {
+      if (typeof element.style.cssText === 'string') {
+        element.style.cssText = value;
         return value;
-      case 'for':
-        element.htmlFor = value;
-        return value;
+      }
     }
-    if (features.setAttributeExtraParam) {
-      element.setAttribute(name, value, 0);
-    } else {
-      element.setAttribute(name, value);
+    // IE always has an attribute node for valid HTML attributes.  Setting
+    // it this way avoids problems with setAttribute() on IE[67].
+    var node = element.getAttributeNode(name);
+    if (node) {
+      node.value = value;
+      return value;
     }
+    node = element.ownerDocument.createAttribute(name);
+    node.value = value;
+    element.setAttributeNode(node);
     return value;
   }
 
@@ -522,9 +519,9 @@ var bridal = (function() {
    * @param {string} name the name of an attribute.
    */
   function getAttribute(element, name) {
-    // In IE[67], element.style.cssText seems to be the only way to get at
-    // the value string.  So this can fail if element.style is a form input
-    // instead of element's style object.
+    // In IE[67], element.style.cssText seems to be the only way to get the
+    // value string.  This unfortunately fails when element.style is an
+    // input element instead of a style object.
     if (name === 'style') {
       if (typeof element.style.cssText === 'string') {
         return element.style.cssText;
