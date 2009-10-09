@@ -406,16 +406,28 @@
   <target name="demos" depends="calendar,lolcat-search,testbed,slides"
    description="Puts all the demo files together for easy browsing."/>
 
-  <!-- Cajoles test resources that contain cajita to javascript. -->
-  <target name="CajoledTests" depends="pluginc,dirs,CajoledValija">
-    <transform>
-      <include file="${tests}/com/google/caja/plugin/domita_test_untrusted.html"
-       />
+  <property name="tests.plugin" value="${tests}/com/google/caja/plugin"/>
+  <property name="lib.plugin"   value="${lib}/com/google/caja/plugin"/>
 
-      <output file="${lib}/com/google/caja/plugin/domita_test.co.html"
-       language="cajita"/>
-      <output file="${lib}/com/google/caja/plugin/domita_test.vo.html"
-       language="valija"/>
+  <target name="domitaTests">
+    <concat destfile="${lib.plugin}/domitaTests.html">
+      <file file="${tests.plugin}/domitaHead.html"/>
+      <fileset dir="${tests.plugin}/domita" includes="a*.html" />
+      <file file="${tests.plugin}/domita_test_untrusted.html"/>
+      <fileset dir="${tests.plugin}/domita" includes="*.html"
+               excludes="a*.html z*.html" />
+      <fileset dir="${tests.plugin}/domita" includes="z*.html" />
+      <file file="${tests.plugin}/domitaTail.html"/>
+    </concat>
+  </target>
+
+  <!-- Cajoles test resources that contain cajita to javascript. -->
+  <target name="CajoledTests"
+          depends="pluginc,dirs,CajoledValija,domitaTests">
+    <transform>
+      <include file="${lib.plugin}/domitaTests.html"/>
+      <output file="${lib.plugin}/domitaTests.co.html" language="cajita"/>
+      <output file="${lib.plugin}/domitaTests.vo.html" language="valija"/>
     </transform>
     <transform>
      <include file="${tests}/com/google/caja/a.js"/>

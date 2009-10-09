@@ -1,0 +1,38 @@
+<!--
+  - Copyright (C) 2009 Google Inc.
+  -
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  -
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+ -->
+
+<div class="testcontainer" id="testStrangeIds">
+  testStrangeIds
+</div>
+
+<script>
+jsunitRegister('testStrangeIds', function testStrangeIds() {
+  function $(id) { return document.getElementById(id); }
+  var el = $('testStrangeIds');
+  el.innerHTML = (
+      "<input id='testStrangeIds-1' name='tag[]'>\n"
+      + "<input id='testStrangeIds-2' name='form$location'>\n"
+      + "<span id='23skiddoo'></span>\n"
+      + "<span id='8675309'></span>\n"
+      + "<span id='$-.:;()[]='></span>\n");
+  assertEquals('tag[]', $('testStrangeIds-1').name);
+  assertEquals('form$location', $('testStrangeIds-2').name);
+  assertEquals('23skiddoo', $('23skiddoo').id);
+  assertEquals('8675309', $('8675309').id);
+  assertEquals('$-.:;()[]=', $('$-.:;()[]=').id);
+  pass('testStrangeIds');
+});
+</script>

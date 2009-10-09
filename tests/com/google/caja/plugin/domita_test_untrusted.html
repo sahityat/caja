@@ -1,5 +1,5 @@
 <!--
-  - Copyright (C) 2008 Google Inc.
+  - Copyright (C) 2009 Google Inc.
   -
   - Licensed under the Apache License, Version 2.0 (the "License");
   - you may not use this file except in compliance with the License.
@@ -14,21 +14,8 @@
   - limitations under the License.
  -->
 
-<style type="text/css">
-  .testcontainer { background: yellow; border: 2px solid yellow }
-  .clickme { border: 2px solid fuchsia; }
-  .waiting { border: 2px solid aqua; }
-  .passed { background: #c0ffc0; border: 2px solid #c0ffc0 }
-  .invisible { display: none; float: left }
-  .inline { display: inline }
-</style>
-
 <p class="waiting testcontainer" id="test-timeout-and-interval">
   Timeouts and Intervals<br>
-</p>
-
-<p class="clickme testcontainer" id="test-add-event-listener">
-  <b id="test-add-event-listener-label">click me</b>
 </p>
 
 <p class="clickme testcontainer" id="test-remove-event-listener">
@@ -287,8 +274,6 @@ After
 
 <div class="testcontainer" id="test-id-refs-rewriting"></div>
 
-<div class="testcontainer" id="test-strange-ids"></div>
-
 <div class="testcontainer" id="test-clone-node-structure">
   <p>I have <b title="I have attributes">content</b></p>
 </div>
@@ -452,9 +437,6 @@ Static CommonJS Module</p>
 ><map name="foo"><area href="areatarget.html"
 ></map
 ><img usemap="#foo" src="mappic.gif"></p>
-
-<p class="testcontainer" id="test-document-body-appendChild"
- >I should be the last element until something is appended to document.body</p>
 
 <script type="text/javascript">
 /** Aim high and you might miss the moon! */
@@ -683,28 +665,6 @@ jsunitRegister('testTimeoutAndInterval',
 
 // These "click me" tests should be early on so they're easy to find on the
 // HTML page.
-jsunitRegister('testAddEventListener',
-               function testAddEventListener() {
-  var container = document.getElementById('test-add-event-listener-label');
-  container.addEventListener(
-      'click',
-      function (event) {
-        console.log('received event');
-        assertEquals('B', event.target.tagName);
-        assertEquals('click', event.type);
-        pass('test-add-event-listener');
-      });
-  expectFailure(
-      function() {
-        container.addEventListener('foo');
-      },
-      'addEventListener of a string');
-  expectFailure(
-      function() {
-        container.addEventListener({});
-      },
-      'addEventListener of an ordinary object');
-});
 
 jsunitRegister('testRemoveEventListener',
                function testRemoveEventListener() {
@@ -2079,23 +2039,6 @@ jsunitRegister('testIdRefsRewriting', function testIdRefsRewriting() {
   pass('test-id-refs-rewriting');
 });
 
-jsunitRegister('testStrangeIds', function testStrangeIds() {
-  function $(id) { return document.getElementById(id); }
-  var el = $('test-strange-ids');
-  el.innerHTML = (
-      "<input id='test-strange-ids-1' name='tag[]'>\n"
-      + "<input id='test-strange-ids-2' name='form$location'>\n"
-      + "<span id='23skiddoo'></span>\n"
-      + "<span id='8675309'></span>\n"
-      + "<span id='$-.:;()[]='></span>\n");
-  assertEquals('tag[]', $('test-strange-ids-1').name);
-  assertEquals('form$location', $('test-strange-ids-2').name);
-  assertEquals('23skiddoo', $('23skiddoo').id);
-  assertEquals('8675309', $('8675309').id);
-  assertEquals('$-.:;()[]=', $('$-.:;()[]=').id);
-  pass('test-strange-ids');
-});
-
 jsunitRegister('testCloneNodeStructure', function testCloneNodeStructure() {
   var p = document.getElementById('test-clone-node-structure')
       .getElementsByTagName('P')[0];
@@ -2874,40 +2817,6 @@ jsunitRegister('testUsemap',
   pass('test-usemap');               
 });
 
-jsunitRegister('testDocumentBodyAppendChild',
-               function testDocumentBodyAppendChild() {
-  var notWhitespaceRe = new RegExp('\\S');
-  function getPrevNonWhitespace(prev) {
-    while (prev.nodeType === 3 && !notWhitespaceRe.test(prev.nodeValue)) {
-      prev = prev.previousSibling;
-    }
-    return prev;
-  }
-
-  function getNextNonWhitespace(next) {
-    while (next.nodeType === 3 && !notWhitespaceRe.test(next.nodeValue)) {
-      next = next.nextSibling;
-    }
-    return next;
-  }
-
-  var body = document.body;
-  var container = document.getElementById('test-document-body-appendChild');
-  var last = getPrevNonWhitespace(document.body.lastChild);
-  assertEquals('container is not last', container, last);
-
-  var lastest = document.createElement('DIV');
-  lastest.innerHTML = 'lastest';
-  body.appendChild(lastest);
-  assertEquals('lastest in wrong place',
-               lastest, getNextNonWhitespace(last.nextSibling));
-  assertEquals('lastest is not last',
-               lastest, getPrevNonWhitespace(body.lastChild));
-  assertEquals('body changed', body, document.body);
-  assertEquals('parent is not body', lastest.parentNode, body);
-  pass('test-document-body-appendChild');
-});
-
 jsunitRegister('testFocusBlur',
                function testFocusBlur() {
   var input = document.getElementById('test-focus-blur-1');
@@ -3144,7 +3053,4 @@ jsunitRegister('testStaticCommonJsModule',
     pass("static-common-js-module");
   }
 });
-
-// Before onload events fire
-jsunitRun();
 </script>
