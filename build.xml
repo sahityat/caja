@@ -412,11 +412,20 @@
   <target name="domitaTests">
     <concat destfile="${lib.plugin}/domitaTests.html">
       <file file="${tests.plugin}/domitaHead.html"/>
-      <fileset dir="${tests.plugin}/domita" includes="a*.html" />
+
+      <sort>
+        <name xmlns="antlib:org.apache.tools.ant.types.resources.comparators"/>
+        <fileset dir="${tests.plugin}/domita" includes="a*.html" />
+      </sort>
+
       <file file="${tests.plugin}/domita_test_untrusted.html"/>
-      <fileset dir="${tests.plugin}/domita" includes="*.html"
-               excludes="a*.html z*.html" />
-      <fileset dir="${tests.plugin}/domita" includes="z*.html" />
+
+      <sort>
+        <name xmlns="antlib:org.apache.tools.ant.types.resources.comparators"/>
+        <fileset dir="${tests.plugin}/domita" includes="*.html"
+                 excludes="a*.html" />
+      </sort>
+
       <file file="${tests.plugin}/domitaTail.html"/>
     </concat>
   </target>
